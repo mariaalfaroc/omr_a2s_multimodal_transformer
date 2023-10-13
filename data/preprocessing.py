@@ -11,9 +11,11 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from sklearn.model_selection import KFold, train_test_split
 
-from encoding import krnConverter
-from vocab.preprocessing import check_and_retrieve_vocabulary
-from vocab.preprocessing import EOT_TOKEN, SOT_TOKEN, COC_TOKEN, COR_TOKEN
+from data.encodingGS import krnConverter
+# from vocab.preprocessing import check_and_retrieve_vocabulary
+# from vocab.preprocessing import EOT_TOKEN, SOT_TOKEN, CON_TOKEN, COC_TOKEN, COR_TOKEN
+
+
 
 # TODO:
 # - Poner la cache en RAID si se lanza en la DGX
@@ -29,7 +31,7 @@ memory = joblib.Memory('cache', mmap_mode='r', verbose=0)
 def load_fold_data(
         use_distorted_images: bool = True,
         fold_id: int = 1,
-        kern_encoding: str = 'kern',
+        kern_encoding: str = 'bekern',
         keep_ligatures: bool = True):
     
     # Retrieve partitions
@@ -225,7 +227,7 @@ class GrandStaffDataset(Dataset):
             Y: List[str],
             w2i: Dict[str, int],
             i2w: Dict[int, str],
-            kern_encoding: str = 'kern',
+            kern_encoding: str = 'bekern',
             keep_ligatures: bool = True) -> None:
         
         # Constants
@@ -285,7 +287,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from torchvision.utils import make_grid, save_image
 
-    from encoding import ENCODING_OPTIONS
+    from encodingGS import ENCODING_OPTIONS
 
 
     CHECK_DIR = "check"
@@ -295,7 +297,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--use_distorted_images', action='store_true', help='Use distorted images')
     parser.add_argument('--fold_id', type=int, default=1, choices=[1, 2, 3, 4, 5], help='Fold id')
-    parser.add_argument('--kern_encoding', type=str, default='kern', choices=ENCODING_OPTIONS, help='Kern encoding')
+    parser.add_argument('--kern_encoding', type=str, default='bekern', choices=ENCODING_OPTIONS, help='Kern encoding')
     parser.add_argument('--keep_ligatures', action='store_true', help='Keep ligatures')
     args = parser.parse_args()
 

@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from data.preprocessing import load_grandstaff_dataset
-from data.encoding import krnConverter
+from data.encodingGS import krnConverter
 
 
 ###################################################################### SPECIAL TOKENS:
@@ -12,6 +12,7 @@ from data.encoding import krnConverter
 PAD_TOKEN = '<pad>' # Padding token
 EOT_TOKEN = '<eot>' # End-of-transcript token
 SOT_TOKEN = '<sot>' # Start-of-transcript token
+CON_TOKEN = '<con>' # Change-of-note (change-of-note) token
 COC_TOKEN = '<coc>' # Change-of-column (change-of-voice) token
 COR_TOKEN = '<cor>' # Change-of-row (change-of-event) token
 
@@ -23,7 +24,7 @@ W2I_PATH = 'vocab/w2i.npy'
 I2W_PATH = 'vocab/i2w.npy'
 
 
-def check_and_retrieve_vocabulary(kern_encoding: str = 'kern', keep_ligatures: bool = True):
+def check_and_retrieve_vocabulary(kern_encoding: str = 'bekern', keep_ligatures: bool = True):
     w2i = {}
     i2w = {}
 
@@ -38,7 +39,7 @@ def check_and_retrieve_vocabulary(kern_encoding: str = 'kern', keep_ligatures: b
     return w2i, i2w
 
 
-def make_vocabulary(Y, kern_encoding: str = 'kern', keep_ligatures: bool = True):
+def make_vocabulary(Y, kern_encoding: str = 'bekern', keep_ligatures: bool = True):
     vocab = set()
 
     krn_encoder = krnConverter(kern_encoding, keep_ligatures)
