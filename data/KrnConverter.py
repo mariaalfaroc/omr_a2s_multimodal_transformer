@@ -1,6 +1,17 @@
 import re
 import numpy as np
+import torch
 
+###################################################################### SPECIAL TOKENS:
+
+EOT_TOKEN = '<eot>' # End-of-transcript token
+SOT_TOKEN = '<sot>' # Start-of-transcript token
+CON_TOKEN = '<con>' # Change-of-note (change-of-note) token
+COC_TOKEN = '<coc>' # Change-of-column (change-of-voice) token
+COR_TOKEN = '<cor>' # Change-of-row (change-of-event) token
+
+
+###################################################################### KrnConverter:
 
 # TODO:
 # - Comprobar que funciona con GrandStaff (todas las opciones de codificación)
@@ -9,7 +20,7 @@ import numpy as np
 ENCODING_OPTIONS = ['kern', 'bekern']
 
 
-class krnConverter():
+class KrnConverter():
     """Main Kern converter operations class."""
     
     def __init__(self, encoding: str = 'bekern', keep_ligatures: bool = True):
@@ -28,7 +39,7 @@ class krnConverter():
         # Convert function
         assert encoding in ENCODING_OPTIONS, f'You must chose one of the possible encoding options: {",".join(ENCODING_OPTIONS)}'
         self.encoding = encoding
-        self.convert_step = self.cleanKernFile
+        self.convert_step = self._cleanKernFile
 
 
     def _readSrcFile(self, file_path: str) -> list:
@@ -94,7 +105,7 @@ class krnConverter():
         return in_score
 
 
-    def cleanKernFile(self, file_path: str) -> list:
+    def _cleanKernFile(self, file_path: str) -> list:
         """Convert complete kern sequence to CLEAN kern format."""
         in_file = self._readSrcFile(file_path = file_path)
 
@@ -108,7 +119,7 @@ class krnConverter():
             current_step = list()
             for single_voice in voices:
                 try:
-                    current_step.append(" ".join([self.cleanKernToken(u) for u in single_voice.split(" ")]))
+                    current_step.append(" ".join([self._cleanKernToken(u) for u in single_voice.split(" ")]))
                 except:
                     pass
             if len(current_step) > 0: out_score.append(current_step)
@@ -120,7 +131,7 @@ class krnConverter():
         return out_score
 
 
-    def cleanKernToken(self, in_token: str) -> str:
+    def _cleanKernToken(self, in_token: str) -> str:
 
         """Convert a kern token to its CLEAN equivalent."""
         out_token = None                                                    # Default
@@ -162,19 +173,39 @@ class krnConverter():
             out_token = re.findall('\[*\d*[a-gA-G]+[n#-]*[q]+\]*', in_token)[0]
         return out_token
     
+
+    def encode(self, file_path: str) -> list:
+        y_clean = self._cleanKernFile(file_path)
+        y_coded = []
+
+        for i, voices in enumerate(y_clean):
+            for j, voice in enumerate(voices):
+                notes = voice.split()
+                for k, note in enumerate(notes):
+                    y_coded.append(note)
+                    if k != len(notes) - 1:
+                        y_coded.append(CON_TOKEN)
+                if j != len(voices) - 1:
+                    y_coded.append(COC_TOKEN)
+            if i != len(y_clean) - 1:
+                y_coded.append(COR_TOKEN)
+
+        y_coded = [SOT_TOKEN] + y_coded + [EOT_TOKEN]
+
+        return y_coded    
     
     # ---------------------------------------------------------------------------- CONVERT CALL
     
-    def convert(self, src_file: str ) -> list:
-        out = self.convert_step(src_file).T
-        out_line = self.step_change.join([self.voice_change.join(voice) for voice in out])
-        return out_line
+    # def convert(self, src_file: str ) -> list:
+    #     out = self.convert_step(src_file).T
+    #     out_line = self.step_change.join([self.voice_change.join(voice) for voice in out])
+    #     return out_line
 
 
 
 if __name__ == '__main__':
     import os
-    conv = krnConverter()
+    conv = KrnConverter()
 
     ### Checking all files:
     # base_path = 'data/'
@@ -193,4 +224,4 @@ if __name__ == '__main__':
 
     path = 'data/grandstaff/chopin/mazurkas/mazurka33-3/maj2_up_m-15-18.bekrn'
     res = conv.cleanKernFile(path)
-    print("end")
+    print(res)

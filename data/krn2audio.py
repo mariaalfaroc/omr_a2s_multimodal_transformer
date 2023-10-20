@@ -5,6 +5,7 @@ import multiprocessing as mp
 from music21 import *
 from midi2audio import FluidSynth
 
+SOUND_FONT = 'data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2'
 
 def krn2audio(krn_file):
 	filename = os.path.split(krn_file)[0] + '/' + os.path.split(krn_file)[1].split('.')[0]
@@ -25,7 +26,7 @@ def krn2audio(krn_file):
 	
 	# midi to wav
 	wav_file = filename + '.wav'
-	fs = FluidSynth(sample_rate=22050)
+	fs = FluidSynth(sample_rate=22050, sound_font=SOUND_FONT)
 	fs.midi_to_audio(midi_file, wav_file)
 
 	os.remove(midi_file)

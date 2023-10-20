@@ -6,7 +6,7 @@ from pyMV2H.metrics.mv2h import mv2h
 from music21 import converter as converterm21
 from pyMV2H.converter.midi_converter import MidiConverter as Converter
 
-from vocab.preprocessing import COC_TOKEN, COR_TOKEN
+from data.KrnConverter import COC_TOKEN, COR_TOKEN
 
 # TODO:
 # - Comprobar el número de voces en GrandStaff.
@@ -17,6 +17,7 @@ from vocab.preprocessing import COC_TOKEN, COR_TOKEN
 
 
 def compute_metrics(y_true, y_pred, compute_mv2h=False):
+    assert compute_mv2h == False, "MV2H is not implemented yet."
     # ------------------------------- Sym-ER and Seq-ER:
     metrics = compute_ed_metrics(y_true=y_true, y_pred=y_pred)
     if compute_mv2h:

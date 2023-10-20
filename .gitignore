@@ -1,0 +1,8 @@
+.devcontainer
+.vscode
+joblib_cache
+data/grandstaff
+__pycache__
+*.sf2
+*.ipynb
+Dockerfile.local

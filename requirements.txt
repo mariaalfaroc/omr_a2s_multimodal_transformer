@@ -6,3 +6,4 @@ torchinfo
 librosa
 sklearn
 lightning
+jupyter

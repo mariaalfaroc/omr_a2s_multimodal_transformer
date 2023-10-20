@@ -15,8 +15,8 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from sklearn.model_selection import KFold, train_test_split
 
-from data.encodingGS import krnConverter
-from vocab.preprocessing import EOT_TOKEN, SOT_TOKEN, CON_TOKEN, COC_TOKEN, COR_TOKEN
+from data.KrnConverter import KrnConverter
+from data.dataset import EOT_TOKEN, SOT_TOKEN, CON_TOKEN, COC_TOKEN, COR_TOKEN
 
 
 
@@ -60,25 +60,23 @@ def encodeKrnSeq(in_seq):
 
 
 if __name__ == '__main__':
-    convKRN = krnConverter()
+    convKRN = KrnConverter()
+    #convKRN = KrnConverter(keep_ligatures=False) # ERROR
 
-    path = 'data/grandstaff/chopin/mazurkas/mazurka33-3/maj2_up_m-15-18.bekrn'
+    path = 'data/grandstaff/beethoven/piano-sonatas/sonata05-3/min3_down_m-90-95.bekrn'
 
-    res = convKRN.cleanKernFile(path)
-    encoded_seq = encodeKrnSeq(res)
-    print(encoded_seq)
+    res = convKRN.encode(path)
+    print(res)
 
 
-    # ## Checking all files:
-    # base_path = 'data/'
+    ## Checking all files:
+    # base_path = 'data/grandstaff/'
     # with open('dst.txt', 'w') as fout:
-    #     for root, dir_names, file_names in os.walk(base_path):
-    #         for single_file in file_names:
-    #             if single_file.endswith('bekrn'):
-    #                 target_file = os.path.join(root, single_file)
-    #                 try:
-    #                     res = convKRN.cleanKernFile(target_file)
-    #                     encoded_seq = encodeKrnSeq(res)
-    #                     fout.write("{} - {}\n".format(target_file, "Done!"))
-    #                 except:
-    #                     fout.write("{} - {}\n".format(target_file, "Fail!"))
+    #     file_names = Path('data/grandstaff/pieces.txt').read_text().splitlines()
+    #     for single_file in file_names:
+    #         target_file = os.path.join(base_path, single_file)
+    #         try:
+    #             res = convKRN.encode(target_file)
+    #             fout.write("{} - {}\n".format(target_file, "Done!"))
+    #         except:
+    #             fout.write("{} - {}\n".format(target_file, "Fail!"))
