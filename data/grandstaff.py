@@ -107,80 +107,33 @@ def load_gs_datasets(path: str, kern_encoding: str, use_distorted_images: False)
 
 import torch.nn.functional as F
 
-def pad_batch_images(X):
-    #max_width = max(x, key=lambda sample: sample.shape[2]).shape[2]
-    #x = torch.stack([F.pad(i, pad=(0, max_width - i.shape[2])) for i in x], dim=0)
-    return [x.long() for x in X]
+def pad_batch_images(X, pad_value=0.):
+  if X[0].dim() == 2:
+    X = [i.unsqueeze(0) for i in X] # Add channel dimension to spectrograms
+  #widths = [i.shape[2] for i in X]
+  max_width = max([i.shape[2] for i in X])
+  #print(f'max_width={max_width}, widths={widths}')
+  # Pad images to maximum batch image width
+  X = torch.stack([F.pad(i, value=pad_value, pad=(0, max_width - i.shape[2])) for i in X], dim=0)
+  return X
 
 
 def pad_batch_transcripts(X):
-    #max_length = max(x, key=lambda sample: sample.shape[0]).shape[0]
-    #x = torch.stack([F.pad(i, pad=(0, max_length - i.shape[0])) for i in x], dim=0)
-    x = [x.long() for x in X]
-    return x
+  #widths = [x.shape[0] for x in X]
+  max_length = max(X, key=lambda sample: sample.shape[0]).shape[0]
+  #print(f'max_length={max_length}, widths={widths}')
+  X = torch.stack([F.pad(x, pad=(0, max_length - x.shape[0])) for x in X], dim=0)
+  X = [x.long() for x in X]
+  return X
 
 
 def batch_preparation(batch):
-    xa, xi, y = zip(*batch)
-    # # Zero-pad spectrograms/images to maximum batch spectrogram/image width
-    # xa = pad_batch_images(xa)
-    # xi = pad_batch_images(xi)
-    # # Decoder input: <sot> symbols
-    # dec_in = pad_batch_transcripts(y[:-1])
-    # # Decoder output: symbols <eot>
-    # dec_out = pad_batch_transcripts(y[1:])
-    return xa, xi, y, y
-
-
-###################################################################### PYTORCH DATALOADER UTILS:
-
-
-if __name__ == '__main__':
-  import argparse
-
-  from torch.utils.data import DataLoader
-  from torchvision.utils import make_grid, save_image
-
-  CHECK_DIR = "check"
-  if not os.path.isdir(CHECK_DIR):
-    os.mkdir(CHECK_DIR)
-
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--use_distorted_images', action='store_true', help='Use distorted images')
-  parser.add_argument('--fold_id', type=int, default=1, choices=[1, 2, 3, 4, 5], help='Fold id')
-  parser.add_argument('--kern_encoding', type=str, default='bekern', choices=ENCODING_OPTIONS, help='Kern encoding')
-  #parser.add_argument('--keep_ligatures', action='store_true', help='Keep ligatures')
-  args = parser.parse_args()
-
-  
-  train_dataset, val_dataset, test_dataset = load_gs_datasets(path='data/grandstaff/mozart',
-                                                              kern_encoding=args.kern_encoding,
-                                                              use_distorted_images=args.use_distorted_images)
-  
-  train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=batch_preparation)
-
-  print(f'Train dataset size: {len(train_dataset)}')
-  for xa, xi, dec_in, dec_out in train_loader:
-    print('Types:')
-    print('\txa:', xa[0].dtype)
-    print('\txi:', xi[0].dtype)
-    print('\tdec_in:', dec_in[0].dtype)
-    print('\tdec_out:', dec_out[0].dtype)
-    print('Shapes:')
-    print('\txa:', xa[0].shape)
-    print('\txi:', xi[0].shape)
-    print('\tdec_in:', dec_in[0].shape)
-    print('\tdec_out:', dec_out[0].shape)
-
-    # Save batch spectrogram/images
-    save_image(make_grid(list(xa), nrow=4), f'{CHECK_DIR}/xa_train_batch.jpg')
-    save_image(make_grid(list(xi), nrow=4), f'{CHECK_DIR}/xi_train_batch.jpg')
-
-    # See first sample
-    w2i, i2w = train_dataset.get_vocabulary()
-    print(f'Shape with padding: {dec_in[0].shape}')
-    print('Decoder input:', [i2w[i.item()] for i in dec_in[0]])
-    print('Decoder output:', [i2w[i.item()] for i in dec_out[0]])
-    save_image(xi[0], f'{CHECK_DIR}/xi0_train_batch.jpg')
-
-    break
+  XA, XI, Y = zip(*batch)
+  # # Zero-pad spectrograms/images to maximum batch spectrogram/image width
+  XA = pad_batch_images(XA, pad_value=0.)
+  XI = pad_batch_images(XI, pad_value=1.)
+  # Decoder input: <sot> symbols
+  dec_in = pad_batch_transcripts([y[:-1] for y in Y])
+  # Decoder output: symbols <eot>
+  dec_out = pad_batch_transcripts([y[1:] for y in Y])
+  return XA, XI, dec_in, dec_out

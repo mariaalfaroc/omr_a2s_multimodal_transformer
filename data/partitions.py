@@ -85,7 +85,6 @@ def check_and_make_partitions(path: str, kern_encoding: str, use_distorted_image
 
 if __name__ == '__main__':
   check_and_make_partitions('data/grandstaff', 'bekern', False)
-  check_and_make_partitions('data/grandstaff', 'bekern', False)
   check_and_make_partitions('data/grandstaff/beethoven', 'bekern', False)
   check_and_make_partitions('data/grandstaff/chopin', 'bekern', False)
   check_and_make_partitions('data/grandstaff/hummel', 'bekern', False)
