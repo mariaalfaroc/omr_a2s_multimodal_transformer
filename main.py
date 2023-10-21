@@ -1,65 +1,20 @@
+import argparse
 import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import os, joblib
-from pathlib import Path
-from typing import *
+from torch.utils.data import DataLoader
+from torchvision.utils import make_grid, save_image
 
-import torch
-import librosa
-import numpy as np
-from PIL import Image
-import torch.nn.functional as F
-from torchvision import transforms
-from torch.utils.data import Dataset
-from sklearn.model_selection import KFold, train_test_split
-
-from data.KrnConverter import KrnConverter
-from data.dataset import EOT_TOKEN, SOT_TOKEN, CON_TOKEN, COC_TOKEN, COR_TOKEN
-
-
-
-def encodeKrnSeq(in_seq):
-
-    out_seq = list()
-
-    # Start of sequence:
-    out_seq.append(SOT_TOKEN)
-
-    # For every single time step:
-    for step in in_seq:
-        encoded_line = list()
-        # For every single voice in the time step:
-        for it_voice in range(len(step)-1):
-            elements_in_voice = step[it_voice].split()
-            # All notes in a voice except for the last one:
-            for it_element in range(len(elements_in_voice)-1):
-                encoded_line.append(elements_in_voice[it_element])
-                encoded_line.append(CON_TOKEN) # Change of note
-            
-            # Last note in the current voice
-            encoded_line.append(elements_in_voice[-1])
-            encoded_line.append(COC_TOKEN) # Change of voice
-
-        # All notes in the last voice except for the last one:
-        elements_in_voice = step[-1].split()
-        for it_element in range(len(elements_in_voice)-1):
-            encoded_line.append(elements_in_voice[it_element])
-            encoded_line.append(CON_TOKEN) # Change of note
-        # Last note in the current voice
-        encoded_line.append(elements_in_voice[-1])
-        encoded_line.append(COR_TOKEN) # Change of voice
-
-        out_seq.extend(encoded_line)
-
-    out_seq[-1] = EOT_TOKEN
-    return out_seq
-
-
-
+from utils.kern import KrnConverter, ENCODING_OPTIONS
+from data.grandstaff import load_gs_datasets, batch_preparation
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--use_distorted_images', action='store_true', help='Use distorted images')
+    parser.add_argument('--fold_id', type=int, default=1, choices=[1, 2, 3, 4, 5], help='Fold id')
+    parser.add_argument('--kern_encoding', type=str, default='bekern', choices=ENCODING_OPTIONS, help='Kern encoding')
+    #parser.add_argument('--keep_ligatures', action='store_true', help='Keep ligatures')
+    args = parser.parse_args()
+
     convKRN = KrnConverter()
     #convKRN = KrnConverter(keep_ligatures=False) # ERROR
 
@@ -67,7 +22,6 @@ if __name__ == '__main__':
 
     res = convKRN.encode(path)
     print(res)
-
 
     ## Checking all files:
     # base_path = 'data/grandstaff/'
@@ -80,3 +34,39 @@ if __name__ == '__main__':
     #             fout.write("{} - {}\n".format(target_file, "Done!"))
     #         except:
     #             fout.write("{} - {}\n".format(target_file, "Fail!"))
+
+    CHECK_DIR = "check"
+    if not os.path.isdir(CHECK_DIR):
+        os.mkdir(CHECK_DIR)
+   
+    train_dataset, val_dataset, test_dataset = load_gs_datasets(path='data/grandstaff/mozart',
+                                                                kern_encoding=args.kern_encoding,
+                                                                use_distorted_images=args.use_distorted_images)
+    
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, collate_fn=batch_preparation)
+
+    print(f'Train dataset size: {len(train_dataset)}')
+    for xa, xi, dec_in, dec_out in train_loader:
+        print('Types:')
+        print('\txa:', xa[0].dtype)
+        print('\txi:', xi[0].dtype)
+        print('\tdec_in:', dec_in[0].dtype)
+        print('\tdec_out:', dec_out[0].dtype)
+        print('Shapes:')
+        print('\txa:', xa[0].shape)
+        print('\txi:', xi[0].shape)
+        print('\tdec_in:', dec_in[0].shape)
+        print('\tdec_out:', dec_out[0].shape)
+
+        # Save batch spectrogram/images
+        save_image(make_grid(list(xa), nrow=4), f'{CHECK_DIR}/xa_train_batch.jpg')
+        save_image(make_grid(list(xi), nrow=4), f'{CHECK_DIR}/xi_train_batch.jpg')
+
+        # See first sample
+        w2i, i2w = train_dataset.get_vocabulary()
+        print(f'Shape with padding: {dec_in[0].shape}')
+        print('Decoder input:', [i2w[i.item()] for i in dec_in[0]])
+        print('Decoder output:', [i2w[i.item()] for i in dec_out[0]])
+        save_image(xi[0], f'{CHECK_DIR}/xi0_train_batch.jpg')
+
+        break

@@ -6,7 +6,7 @@ from pyMV2H.metrics.mv2h import mv2h
 from music21 import converter as converterm21
 from pyMV2H.converter.midi_converter import MidiConverter as Converter
 
-from data.KrnConverter import COC_TOKEN, COR_TOKEN
+from utils.kern import COC_TOKEN, COR_TOKEN
 
 # TODO:
 # - Comprobar el número de voces en GrandStaff.

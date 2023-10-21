@@ -5,8 +5,9 @@ import os
 import torch
 
 from .partitions import check_and_make_partitions
-from .KrnConverter import KrnConverter, ENCODING_OPTIONS
 from .utils import get_spectrogram_from_file, get_image_from_file
+
+from utils.kern import KrnConverter, ENCODING_OPTIONS
 
 NUM_CHANNELS = 1
 IMG_HEIGHT = 256
@@ -104,6 +105,7 @@ def load_gs_datasets(path: str, kern_encoding: str, use_distorted_images: False)
 
 ###################################################################### PYTORCH DATALOADER UTILS:
 
+import torch.nn.functional as F
 
 def pad_batch_images(X):
     #max_width = max(x, key=lambda sample: sample.shape[2]).shape[2]
