@@ -1,0 +1,4 @@
+main.data_path = "data/grandstaff/mozart"
+main.corpus_name = "Mozart"
+main.model_name = "DAN_audio"
+main.metric_to_watch = "val_sym-er"

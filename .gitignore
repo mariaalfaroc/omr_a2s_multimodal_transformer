@@ -6,3 +6,8 @@ __pycache__
 *.sf2
 *.ipynb
 Dockerfile.local
+check/*.jpg
+wandb
+weights
+out
+results

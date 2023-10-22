@@ -42,6 +42,8 @@ if __name__ == '__main__':
     CHECK_DIR = "check"
     if not os.path.isdir(CHECK_DIR):
         os.mkdir(CHECK_DIR)
+    for file in os.listdir(CHECK_DIR):
+        os.remove(os.path.join(CHECK_DIR, file))
    
     train_dataset, val_dataset, test_dataset = load_gs_datasets(path='data/grandstaff/mozart',
                                                                 kern_encoding=args.kern_encoding,

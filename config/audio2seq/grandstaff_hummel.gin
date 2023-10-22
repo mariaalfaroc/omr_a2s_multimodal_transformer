@@ -1,0 +1,4 @@
+main.data_path = "data/grandstaff/hummel"
+main.corpus_name = "Hummel"
+main.model_name = "DAN_audio"
+main.metric_to_watch = "val_sym-er"

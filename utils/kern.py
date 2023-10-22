@@ -4,12 +4,9 @@ import torch
 
 ###################################################################### SPECIAL TOKENS:
 
-EOT_TOKEN = '<eot>' # End-of-transcript token
-SOT_TOKEN = '<sot>' # Start-of-transcript token
 CON_TOKEN = '<con>' # Change-of-note (change-of-note) token
 COC_TOKEN = '<coc>' # Change-of-column (change-of-voice) token
 COR_TOKEN = '<cor>' # Change-of-row (change-of-event) token
-
 
 ###################################################################### KrnConverter:
 
@@ -190,7 +187,7 @@ class KrnConverter():
             if i != len(y_clean) - 1:
                 y_coded.append(COR_TOKEN)
 
-        y_coded = [SOT_TOKEN] + y_coded + [EOT_TOKEN]
+        #y_coded = [SOT_TOKEN] + y_coded + [EOT_TOKEN]
 
         return y_coded    
     
