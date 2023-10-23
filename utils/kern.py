@@ -84,16 +84,16 @@ class KrnConverter():
 
 
         # Removing ligatures (if so):
-        ### Locating openings:
         if not self.keep_ligatures:
-            for it_voice in range(len(in_score)):
-                for pos in np.where(np.char.startswith([line[it_voice] for line in in_score], '['))[0]:
-                    in_score[pos][it_voice] = in_score[pos][it_voice].replace('[', '')
+            for it_time in range(len(in_score)):
+                for pos in np.where(np.char.endswith(np.array(in_score[it_time]), '['))[0]:
+                    in_score[it_time][pos] = in_score[it_time][pos].replace('[', '')
                 pass
 
-                for pos in np.where(np.char.endswith([line[it_voice] for line in in_score], ']'))[0]:
-                    if not np.char.startswith(in_score[pos][it_voice], '*'): 
-                        in_score[pos][it_voice] = in_score[pos][it_voice].replace(']', '')
+
+                for pos in np.where(np.char.endswith(np.array(in_score[it_time]), ']'))[0]:
+                    if not np.char.startswith(in_score[it_time][pos], '*'): 
+                        in_score[it_time][pos] = in_score[it_time][pos].replace(']', '')
                     pass
                 pass
             pass
@@ -130,6 +130,7 @@ class KrnConverter():
 
     def _cleanKernToken(self, in_token: str) -> str:
 
+
         """Convert a kern token to its CLEAN equivalent."""
         out_token = None                                                    # Default
 
@@ -163,11 +164,13 @@ class KrnConverter():
                 out_token = in_token.split('r')[0]+'r'
             else:                     
                 in_token = in_token.replace("·", "")                        # Music note
-                out_token = re.findall('\[*\d+[.]*[a-gA-G]+[n#-]*\]*', in_token)[0]
+                out_token = re.findall('\d+[.]*[a-gA-G]+[n#-]*', in_token)[0]
+                if '[' in in_token: out_token += '[' 
+                if ']' in in_token: out_token += ']' 
         
         elif 'q' in in_token:
             in_token = in_token.replace("·", "")                            # Music note with q
-            out_token = re.findall('\[*\d*[a-gA-G]+[n#-]*[q]+\]*', in_token)[0]
+            out_token = re.findall('\d*[a-gA-G]+[n#-]*[q]+', in_token)[0]
         return out_token
     
 
@@ -202,7 +205,7 @@ class KrnConverter():
 
 if __name__ == '__main__':
     import os
-    conv = KrnConverter()
+    conv = KrnConverter(keep_ligatures = False)
 
     ### Checking all files:
     # base_path = 'data/'
@@ -212,13 +215,13 @@ if __name__ == '__main__':
     #             if single_file.endswith('bekrn'):
     #                 target_file = os.path.join(root, single_file)
     #                 try:
-    #                     res = conv.cleanKernFile(target_file)
+    #                     res = conv.encode(target_file)
     #                     fout.write("{} - {}\n".format(target_file, "Done!"))
     #                 except:
     #                     fout.write("{} - {}\n".format(target_file, "Fail!"))
 
     # path = 'data/grandstaff/chopin/mazurkas/mazurka33-3/maj3_down_m-33-36.bekrn'
 
-    path = 'data/grandstaff/chopin/mazurkas/mazurka33-3/maj2_up_m-15-18.bekrn'
-    res = conv.cleanKernFile(path)
+    path = 'data/grandstaff/beethoven/piano-sonatas/sonata01-2/maj2_down_m-10-15.bekrn'
+    res = conv.encode(path)
     print(res)
