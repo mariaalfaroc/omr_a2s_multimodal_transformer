@@ -10,13 +10,19 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
-from data.grandstaff import NUM_CHANNELS, batch_preparation, load_gs_datasets
+from data.grandstaff import NUM_CHANNELS, batch_preparation_audio, batch_preparation_image, batch_preparation_multimodal, load_gs_datasets
 from model.dan_transformer import Poliphony_DAN, get_model
+
+BATCH_FUNCTIONS = {
+    "DAN_audio": batch_preparation_audio,
+    "DAN_image": batch_preparation_image,
+    "DAN_multimodal": batch_preparation_multimodal
+}
 
 torch.set_float32_matmul_precision("high")
 
 @gin.configurable
-def main(data_path, checkpoint_path=None, corpus_name=None, model_name=None, metric_to_watch=None, max_epochs=10000):
+def main(data_path, checkpoint_path=None, corpus_name=None, model_name=None, keep_vocabulary=False, metric_to_watch=None, max_epochs=10000):
     logger.info("-----------------------")
     logger.info(f"Training with {data_path}")
     logger.info(f"Training with the {model_name} model")
@@ -31,16 +37,22 @@ def main(data_path, checkpoint_path=None, corpus_name=None, model_name=None, met
 
     # Load data
     logger.info("Loading data...")
-    train_dataset, val_dataset, test_dataset = load_gs_datasets(path=data_path, kern_encoding='bekern', use_distorted_images=False)
+    vocab_path = f"vocab/{corpus_name}"
+    if not keep_vocabulary:
+        # remove vocab folder if exists
+        if os.path.exists(vocab_path):
+            os.system(f"rm -rf {vocab_path}")
+    train_dataset, val_dataset, test_dataset = load_gs_datasets(path=data_path, kern_encoding='bekern', use_distorted_images=False, vocab_path=vocab_path)
     print(f'Train: {len(train_dataset)}; Test: {len(test_dataset)}; Val: {len(val_dataset)}')
 
     # Get dictionaries
     w2i, i2w = train_dataset.get_dictionaries()
 
     # Create dataloaders (16 in boo, recommended by PyTorch)
-    train_dataloader = DataLoader(train_dataset, batch_size=1, num_workers=16, collate_fn=batch_preparation)
-    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, collate_fn=batch_preparation)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, num_workers=16, collate_fn=batch_preparation)
+    assert(model_name in BATCH_FUNCTIONS.keys()), f"Model name {model_name} must be one in {BATCH_FUNCTIONS.keys()}"
+    train_dataloader = DataLoader(train_dataset, batch_size=1, num_workers=16, collate_fn=BATCH_FUNCTIONS[model_name])
+    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, collate_fn=BATCH_FUNCTIONS[model_name])
+    test_dataloader = DataLoader(test_dataset, batch_size=1, num_workers=16, collate_fn=BATCH_FUNCTIONS[model_name])
 
     # Get max values
     # This code calculates the maximum height, width, and sequence length of the images in three different datasets: train_dataset, val_dataset, and test_dataset. It then assigns the maximum values to the variables maxheight, maxwidth, and maxlen, respectively.

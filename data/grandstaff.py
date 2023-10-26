@@ -7,6 +7,7 @@ import numpy as np
 
 from .partitions import check_and_make_partitions
 from .utils import get_spectrogram_from_file, get_image_from_file
+from .vocabulary import check_and_retrieve_vocabulary
 
 from utils.kern import KrnConverter, ENCODING_OPTIONS
 
@@ -27,6 +28,7 @@ class GrandStaffDataset(Dataset):
       w2i: Dict[str, int] = None,
       i2w: Dict[int, str] = None,
       use_distorted_images: bool = False,
+      vocab_path: str = None,
       kern_encoding: str = 'bekern',
       keep_ligatures: bool = True) -> None:
     
@@ -35,7 +37,9 @@ class GrandStaffDataset(Dataset):
 
     self.XA, self.XI, self.Y_files = self.__load_files__(path)
     self.Y = [[SOT_TOKEN] + krn_encoder.encode(file) + [EOT_TOKEN] for file in self.Y_files]
-    self.__make_vocabulary__()
+    self.w2i = None
+    self.i2w = None
+    #self.__make_vocabulary__()
   
   def __load_files__(self, path: str) -> Tuple[List[str], List[str], List[str]]:
     """Load a partition from a text file."""
@@ -97,6 +101,10 @@ class GrandStaffDataset(Dataset):
     
     return xa, xi, decoder_input, y
   
+  def set_dictionaries(self, w2i: Dict[str, int], i2w: Dict[int, str]) -> None:
+    self.w2i = w2i
+    self.i2w = i2w
+
   def get_dictionaries(self) -> Tuple[Dict[str, int], Dict[int, str]]:
     return self.w2i, self.i2w
   
@@ -126,15 +134,20 @@ class GrandStaffDataset(Dataset):
 ###################################################################### DATALOADER FUNCTION:
 
 
-def load_gs_datasets(path: str, kern_encoding: str, use_distorted_images: False):
+def load_gs_datasets(path: str, kern_encoding: str, use_distorted_images: False, vocab_path: str = None):
   assert os.path.exists(path), f'Path {path} does not exist.'
   assert kern_encoding in ENCODING_OPTIONS, f'You must chose one of the possible encoding options: {",".join(ENCODING_OPTIONS)}'
   
   train, val, test = check_and_make_partitions(path, kern_encoding, use_distorted_images)
   
-  train_dataset = GrandStaffDataset(train, kern_encoding=kern_encoding, use_distorted_images=use_distorted_images)
+  train_dataset = GrandStaffDataset(train, kern_encoding=kern_encoding, use_distorted_images=use_distorted_images, vocab_path=vocab_path)
   val_dataset = GrandStaffDataset(val, kern_encoding=kern_encoding, use_distorted_images=use_distorted_images)
   test_dataset = GrandStaffDataset(test, kern_encoding=kern_encoding, use_distorted_images=use_distorted_images)
+
+  w2i, i2w = check_and_retrieve_vocabulary([train_dataset.get_gt(), val_dataset.get_gt(), test_dataset.get_gt()], vocab_path, padding_token=PAD_TOKEN)
+  train_dataset.set_dictionaries(w2i, i2w)
+  val_dataset.set_dictionaries(w2i, i2w)
+  test_dataset.set_dictionaries(w2i, i2w)
 
   return train_dataset, val_dataset, test_dataset
 
@@ -164,7 +177,7 @@ def pad_batch_transcripts(X):
   return X
 
 
-def batch_preparation(batch):
+def batch_preparation(batch, input_data='audio'):
   XA, XI, Y, GT = zip(*batch)
   # # Zero-pad spectrograms/images to maximum batch spectrogram/image width
   XA = pad_batch_images(XA, pad_value=0.) # background for spectrograms is black
@@ -174,5 +187,18 @@ def batch_preparation(batch):
   Y = pad_batch_transcripts([y[:-1] for y in Y]) # Remove <eot> from decoder input  
   # Decoder output: symbols <eot>
   GT = pad_batch_transcripts([y[1:] for y in GT]) # Remove <sot> from decoder output
-  #return XA, XI, Y, GT
-  return XA, Y.long(), GT.long()
+  if input_data == 'audio':
+    return XA, Y.long(), GT.long()
+  elif input_data == 'image':
+    return XI, Y.long(), GT.long()
+  elif input_data == 'multimodal':
+    return XA, XI, Y.long(), GT.long()
+
+def batch_preparation_audio(batch):
+  return batch_preparation(batch, input_data='audio')
+
+def batch_preparation_image(batch):
+  return batch_preparation(batch, input_data='image')
+
+def batch_preparation_multimodal(batch):
+  return batch_preparation(batch, input_data='multimodal')

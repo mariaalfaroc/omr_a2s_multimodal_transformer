@@ -1,5 +1,5 @@
 main.data_path = "data/grandstaff/mozart"
 main.corpus_name = "GS_Mozart"
-main.model_name = "DAN_audio"
+main.model_name = "DAN_image"
 main.metric_to_watch = "val_sym-er"
 main.keep_vocabulary = True

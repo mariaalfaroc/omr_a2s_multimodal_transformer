@@ -4,7 +4,7 @@ import torch.nn as nn
 from torchinfo import summary
 import lightning.pytorch as L
 import numpy as np
-import gin
+#import gin
 
 from data.grandstaff import NUM_CHANNELS, SPECTROGRAM_HEIGHT, SCORE_HEIGHT, SOT_TOKEN, EOT_TOKEN, PAD_TOKEN
 from utils.metrics import compute_metrics
@@ -14,7 +14,7 @@ from model.encoding import PositionalEncoding2D
     
 ####################################################### DAN MODEL:
 
-@gin.configurable
+#@gin.configurable
 class DAN(L.LightningModule):
     def __init__(self, d_model, dim_ff, maxh, maxw, maxlen, out_categories, padding_token, in_channels, w2i, i2w, out_dir, encoder_type="DAN"):
         super().__init__()
@@ -162,7 +162,8 @@ class Poliphony_DAN(DAN):
     
 ####################################################################################
 
-@gin.configurable
+#@gin.configurable
+# TODO: h_red and w_red are the height and width reduction factors, defined by the convolutions done in the encoder. These values shouldn't be hardcoded here.
 def get_model(in_channels, d_model, dim_ff, max_height, max_width, max_len, out_categories, w2i, i2w, out_dir, h_red=16, w_red=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Poliphony_DAN(in_channels=in_channels, d_model=d_model, 

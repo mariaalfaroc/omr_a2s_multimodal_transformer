@@ -3,13 +3,16 @@
 ###################################################  TRAIN ALL MODELS ON ALL COMPOSERS:
 
 mkdir -p results
-for train_composer in beethoven chopin hummel joplin mozart scarlatti-d all; do
+for train_composer in hummel; do #beethoven chopin hummel joplin mozart scarlatti-d all; do
     mkdir -p results/$train_composer
 
     ################################ DAN:
     # Ligatures
     echo "Train Composer: $train_composer; Test Composer: $train_composer; Model: DAN_audio"
-    python train_audio2seq.py --config config/audio2seq/grandstaff_$train_composer.gin > results/$train_composer/DAN_audio_$train_composer.txt
+    python train.py --config config/audio2seq/grandstaff_$train_composer.gin > results/$train_composer/DAN_audio_$train_composer.txt
+
+    echo "Train Composer: $train_composer; Test Composer: $train_composer; Model: DAN_image"
+    python train.py --config config/image2seq/grandstaff_$train_composer.gin > results/$train_composer/DAN_image_$train_composer.txt
 done
 
 ###################################################  TEST ALL MODELS AGAINST ALL COMPOSERS:
