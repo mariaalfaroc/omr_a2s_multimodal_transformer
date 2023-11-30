@@ -1,23 +1,21 @@
 import os, shutil
-
+import numpy as np
 from pyMV2H.utils.mv2h import MV2H
 from pyMV2H.utils.music import Music
 from pyMV2H.metrics.mv2h import mv2h
 from music21 import converter as converterm21
 from pyMV2H.converter.midi_converter import MidiConverter as Converter
 
-from utils.kern import COC_TOKEN, COR_TOKEN
+from utils.kern import CON_TOKEN, COC_TOKEN, COR_TOKEN
 
-# TODO:
-# - Comprobar el número de voces en GrandStaff.
-# - Ahora mismo se introduce el token de cambio de voz (COR_TOKEN) en la codificación,
-#   pero no está introducido en el cálculo de las métricas. Comprobar que el de COC_TOKEN
-#   se tiene en cuenta también.
-# - Las métricas solo están pensadas para kern y no para las dos opciones de decoupl.
+#### DEBUG
+# CON_TOKEN = '<con>' 
+# COC_TOKEN = '<coc>' 
+# COR_TOKEN = '<cor>' 
+#### \DEBUG
 
 
 def compute_metrics(y_true, y_pred, compute_mv2h=False):
-    assert compute_mv2h == False, "MV2H is not implemented yet."
     # ------------------------------- Sym-ER and Seq-ER:
     metrics = compute_ed_metrics(y_true=y_true, y_pred=y_pred)
     if compute_mv2h:
@@ -67,7 +65,26 @@ def compute_ed_metrics(y_true, y_pred):
 
 def compute_mv2h_metrics(y_true, y_pred):
 
+    def removeSpineTokens(in_file):
+        tokensToRemove = ['*^\n', '*v\n']
+
+        with open(in_file) as fin:
+            line = fin.readlines()
+
+        for singleToken in tokensToRemove:
+            try:
+                indices = np.where(np.array(line) == singleToken)[0]
+                line = list(np.delete(np.array(line), indices))
+                with open(in_file, 'w') as fout:
+                    for element in line: fout.write(element)
+            except:
+                pass
+        return
+
+
     def krn2midi(in_file):
+        removeSpineTokens(in_file)
+
         a = converterm21.parse(in_file).write('midi')
         midi_file = a.name
         shutil.copyfile(a, midi_file)
@@ -117,141 +134,179 @@ def compute_mv2h_metrics(y_true, y_pred):
         return res_dict
 
     def divide_voice(in_file, out_file, voice):
+        bool_voiceExists = True
+
         # Opening file:
         with open(in_file) as fin:
             read_file = fin.readlines()
 
         # Read voice:
-        voice = [u.split('\t')[voice].strip() for u in read_file]
+        try:
+            voice = [u.split('\t')[voice].strip() for u in read_file]
 
-        # Writing voice:
-        with open(out_file, 'w') as fout:
-            for token in voice:
-                fout.write(token + '\n')
+            # Writing voice:
+            with open(out_file, 'w') as fout:
+                for token in voice:
+                    fout.write(token + '\n')
+        except:
+            bool_voiceExists = False
 
-        return
+        return bool_voiceExists
 
     """Monophonic evaluation."""
     def eval_as_monophonic():
         global_res_dict = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
-        # TODO
-        # Check whether it is 4 or 2!
-        for it_voice in range(4):
-            # Processing GT:
-            divide_voice('gtKern.krn', 'gtVoiceKern.krn', it_voice)
-            reference_midi_file = krn2midi('gtVoiceKern.krn')
-
-            # Processing prediction:
-            divide_voice('predKern.krn', 'predVoiceKern.krn', it_voice)
-            predicted_midi_file = krn2midi('predVoiceKern.krn')
-
-            # Converting to TXT:
-            ### True:
-            reference_txt_file = midi2txt(reference_midi_file)
-
-            ### Pred:
-            predicted_txt_file = midi2txt(predicted_midi_file)
-            
-            # Figures of merit:
-            reference_file = Music.from_file(reference_txt_file)
-            transcription_file = Music.from_file(predicted_txt_file)
+        
+        n_voices = 0
+        eval_voices = True
+        while(eval_voices):
 
             res_dict = MV2H(multi_pitch = 0, voice = 0, meter = 0, harmony = 0, note_value = 0)
-            try:
-                res_dict = mv2h(reference_file, transcription_file)
-                global_res_dict.__multi_pitch__  += res_dict.multi_pitch
-                global_res_dict.__voice__ += res_dict.voice
-                global_res_dict.__meter__ += res_dict.meter
-                global_res_dict.__harmony__ += res_dict.harmony
-                global_res_dict.__note_value__ += res_dict.note_value
-            except:
-                pass
 
-            os.remove(reference_txt_file)
-            os.remove(predicted_txt_file)
+            # Processing GT:
+            gtVoice_exists = divide_voice('gtKern.krn', 'gtVoiceKern.krn', n_voices)
+            if gtVoice_exists:
+                reference_midi_file = krn2midi('gtVoiceKern.krn') # Converting to MIDI
+                reference_txt_file = midi2txt(reference_midi_file) # Converting to TXT
+                reference_file = Music.from_file(reference_txt_file)
+            
+            # Processing prediction:
+            predVoice_exists = divide_voice('predKern.krn', 'predVoiceKern.krn', n_voices)
+            if predVoice_exists:
+                predicted_midi_file = krn2midi('predVoiceKern.krn') # Converting to MIDI
+                predicted_txt_file = midi2txt(predicted_midi_file) # Converting to TXT
+                transcription_file = Music.from_file(predicted_txt_file)
 
-        global_res_dict.__multi_pitch__  /= 4
-        global_res_dict.__voice__ /= 4
-        global_res_dict.__meter__ /= 4
-        global_res_dict.__harmony__ /= 4
-        global_res_dict.__note_value__ /= 4
+            if gtVoice_exists and predVoice_exists:
+                n_voices += 1
+
+                # Figures of merit:
+                try:
+                    res_dict = mv2h(reference_file, transcription_file)
+                    global_res_dict.__multi_pitch__  += res_dict.multi_pitch
+                    global_res_dict.__voice__ += res_dict.voice
+                    global_res_dict.__meter__ += res_dict.meter
+                    global_res_dict.__harmony__ += res_dict.harmony
+                    global_res_dict.__note_value__ += res_dict.note_value
+                except:
+                    pass
+
+            else:    
+                eval_voices = False
+            pass
+
+            if os.path.exists(reference_txt_file): os.remove(reference_txt_file)
+            if os.path.exists(predicted_txt_file): os.remove(predicted_txt_file)
+
+
+        print(" ----- n_voices ----- ", n_voices)
+        global_res_dict.__multi_pitch__  /= n_voices
+        global_res_dict.__voice__ /= n_voices
+        global_res_dict.__meter__ /= n_voices
+        global_res_dict.__harmony__ /= n_voices
+        global_res_dict.__note_value__ /= n_voices
 
         return global_res_dict
 
 
-    MV2H_global = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
-    for it_piece in range(len(y_true)):
-        ### GROUND TRUTH:
-        # Creating GT kern file:
-        with open('gtKern.krn', 'w') as fout:
+    """Sequence to kern"""
+    def seq2kern(sequence, name_out):
+
+        with open(name_out, 'w') as fout:
+            n_cols = (np.where(np.array(sequence) == COR_TOKEN)[0][0]+1)//2
+
             # Kern header:
-            fout.write('\t'.join(['**kern']*4) + '\n')
+            fout.write('\t'.join(['**kern']*n_cols) + '\n')
 
             # Iterating through the line:
-            line = []
-            for token in y_true[it_piece]:
-                # TODO
-                # Check whether we also use the COC_TOKEN
+            line = list()
+            flag_CON_TOKEN = False
+            for token in sequence:
                 if token == COR_TOKEN:
                     if len(line) > 0:
-                        if len(line) < 4: line.extend(['.']*(4-len(line)))
+                        if len(line) < n_cols: line.extend(['.']*(n_cols-len(line)))
                         fout.write('\t'.join(line) + '\n')
-                    line = []
+                    line = list()
+                elif token == COC_TOKEN:
+                    pass
+                elif token == CON_TOKEN:
+                    flag_CON_TOKEN = True
                 else:
-                    if token != 'DOT': line.append(token)
-                    else: line.append('.')
+                    if token != 'DOT':
+                        if flag_CON_TOKEN == True:
+                            if len(line) > 0: line[-1] = line[-1] + ' ' + token
+                            else: line.append(token)
+                            flag_CON_TOKEN = False
+                        else:
+                            line.append(token)
+                        pass
+                    else: 
+                        line.append('.')
+                    pass
+                pass
+            pass
+        return
 
-        ### PREDICTION:
-        # Creating predicted kern file:
-        with open('predKern.krn', 'w') as fout:
-            # Kern header:
-            fout.write('\t'.join(['**kern']*4) + '\n')
 
-            # Iterating through the line:
-            line = []
-            for token in y_pred[it_piece]:
-                # TODO
-                # Check whether we also use the COC_TOKEN
-                if token == COR_TOKEN:
-                    if len(line) > 0:
-                        if len(line) < 4: line.extend(['.']*(4-len(line)))
-                        fout.write('\t'.join(line) + '\n')
-                    line = []
-                else:
-                    if token != 'DOT': line.append(token)
-                    else: line.append('.')
+    MV2H_score = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
+    ### GROUND TRUTH:
+    # Creating GT kern file:
+    seq2kern(sequence = y_true, name_out = 'gtKern.krn')
 
-        # Testing whether predicted Kern can be processed as polyphonic
-        flag_polyphonic_kern = True
-        try:
-            a = converterm21.parse('predKern.krn').write('midi')
-        except:
-            flag_polyphonic_kern = False
+    ### PREDICTION:
+    # Creating predicted kern file:
+    seq2kern(sequence = y_pred, name_out = 'predKern.krn')
 
-        if flag_polyphonic_kern: # If predicted can be polyphonic -> Polyphonic evaluation
-            res_dict = eval_as_polyphonic()
-        else: # Otherwise -> Single-voice evaluation
-            res_dict = eval_as_monophonic()
+    # Testing whether predicted Kern can be processed as polyphonic
+    flag_polyphonic_kern = False
+    try:
+        a = converterm21.parse('predKern.krn').write('midi')
+    except:
+        flag_polyphonic_kern = False
 
-        MV2H_global.__multi_pitch__  += res_dict.multi_pitch
-        MV2H_global.__voice__ += res_dict.voice
-        MV2H_global.__meter__ += res_dict.meter
-        MV2H_global.__harmony__ += res_dict.harmony
-        MV2H_global.__note_value__ += res_dict.note_value
+    if flag_polyphonic_kern: # If predicted can be polyphonic -> Polyphonic evaluation
+        res_dict = eval_as_polyphonic()
+    else: # Otherwise -> Single-voice evaluation
+        res_dict = eval_as_monophonic()
 
-    MV2H_global.__multi_pitch__  /= len(y_true)
-    MV2H_global.__voice__ /= len(y_true)
-    MV2H_global.__meter__ /= len(y_true)
-    MV2H_global.__harmony__ /= len(y_true)
-    MV2H_global.__note_value__ /= len(y_true)
+    MV2H_score.__multi_pitch__  += res_dict.multi_pitch
+    MV2H_score.__voice__ += res_dict.voice
+    MV2H_score.__meter__ += res_dict.meter
+    MV2H_score.__harmony__ += res_dict.harmony
+    MV2H_score.__note_value__ += res_dict.note_value
 
     mv2h_dict = {
-        'multi-pitch': MV2H_global.__multi_pitch__ ,
-        'voice': MV2H_global.__voice__,
-        'meter': MV2H_global.__meter__,
-        'harmony': MV2H_global.__harmony__,
-        'note_value': MV2H_global.__note_value__,
-        'mv2h': MV2H_global.mv2h
+        'multi-pitch': MV2H_score.__multi_pitch__ ,
+        'voice': MV2H_score.__voice__,
+        'meter': MV2H_score.__meter__,
+        'harmony': MV2H_score.__harmony__,
+        'note_value': MV2H_score.__note_value__,
+        'mv2h': MV2H_score.mv2h
     }
 
+    if os.path.exists('gtKern.krn'): os.remove('gtKern.krn')
+    if os.path.exists('predKern.krn'): os.remove('predKern.krn')
+
     return mv2h_dict
+
+
+if __name__ == '__main__':
+
+    for idx in range(44):
+        with open("utils/gt/{}.krn".format(idx)) as f:
+            gt = f.readlines()[0].strip().split("\t")
+
+        with open("utils/hyp/{}.krn".format(idx)) as f:
+            hyp = f.readlines()[0].strip().split("\t")
+
+        print("{}.krn = {}".format(idx, compute_metrics(y_true = gt, y_pred = hyp, compute_mv2h = True)))
+
+
+    # idx = 1
+    # with open("utils/gt/{}.krn".format(idx)) as f:
+    #     gt = f.readlines()[0].strip().split("\t")
+    # with open("utils/hyp/{}.krn".format(idx)) as f:
+    #     hyp = f.readlines()[0].strip().split("\t")
+    # print("{}.krn = {}".format(idx, compute_metrics(y_true = gt, y_pred = hyp, compute_mv2h = True)))
+
+    print("end")
