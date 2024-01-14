@@ -401,4 +401,5 @@ FodyWeavers.xsd
 joblib_cache
 wandb
 weights
-grandstaff/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2
+grandstaff
+data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2
