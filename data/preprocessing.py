@@ -50,9 +50,25 @@ def preprocess_image(path: str, img_height: int = None) -> torch.Tensor:
     return x
 
 
-def pad_batch_inputs(x):
+def pad_batch_inputs(x, pad_value: float = 0.0):
     max_width = max(x, key=lambda sample: sample.shape[2]).shape[2]
-    x = torch.stack([F.pad(i, pad=(0, max_width - i.shape[2])) for i in x], dim=0)
+    max_height = max(x, key=lambda sample: sample.shape[1]).shape[1]
+    x = torch.stack(
+        [
+            F.pad(
+                i,
+                pad=(
+                    0,  # left
+                    max_width - i.shape[2],  # right
+                    0,  # top
+                    max_height - i.shape[1],  # bottom
+                ),
+                value=pad_value,
+            )
+            for i in x
+        ],
+        dim=0,
+    )
     return x
 
 
@@ -63,10 +79,10 @@ def pad_batch_transcripts(x, dtype=torch.int32):
     return x
 
 
-def batch_preparation(batch):
+def ar_batch_preparation_unimodal(batch, pad_value: float = 0.0):
     x, xl, y = zip(*batch)
-    # Zero-pad inputs (images or audios) to maximum batch inputs width
-    x = pad_batch_inputs(x)
+    # Zero-pad inputs (images or audios) to maximum batch inputs shape
+    x = pad_batch_inputs(x, pad_value=pad_value)
     xl = torch.tensor(xl, dtype=torch.int32)
     # Decoder input: transcript[:-1]
     y_in = [i[:-1] for i in y]
@@ -75,3 +91,29 @@ def batch_preparation(batch):
     y_out = [i[1:] for i in y]
     y_out = pad_batch_transcripts(y_out, dtype=torch.int64)
     return x, xl, y_in, y_out
+
+
+def ar_batch_preparation_image(batch):
+    # Background for scores is white
+    return ar_batch_preparation_unimodal(batch, pad_value=1.0)
+
+
+def ar_batch_preparation_audio(batch):
+    # Background for spectrograms is black
+    return ar_batch_preparation_unimodal(batch)
+
+
+def ar_batch_preparation_multimodal(batch):
+    xi, xli, xa, xla, y = zip(*batch)
+    # Zero-pad inputs (images and audios) to maximum batch inputs shape
+    xi = pad_batch_inputs(xi, pad_value=1.0)
+    xli = torch.tensor(xli, dtype=torch.int32)
+    xa = pad_batch_inputs(xa)
+    xla = torch.tensor(xla, dtype=torch.int32)
+    # Decoder input: transcript[:-1]
+    y_in = [i[:-1] for i in y]
+    y_in = pad_batch_transcripts(y_in, dtype=torch.int64)
+    # Decoder target: transcript[1:]
+    y_out = [i[1:] for i in y]
+    y_out = pad_batch_transcripts(y_out, dtype=torch.int64)
+    return xi, xli, xa, xla, y_in, y_out
