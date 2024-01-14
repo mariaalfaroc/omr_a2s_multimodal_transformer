@@ -1,11 +1,10 @@
 import os
-import requests
-import tarfile
 import shutil
+import tarfile
+import requests
 
-from music21 import converter
 from midi2audio import FluidSynth
-
+from music21 import converter
 
 GRANDSTAFF_PATH = "./grandstaff"
 SOUND_FONT = "./data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2"
@@ -24,52 +23,58 @@ def download_and_extract_grandstaff_dataset():
     with tarfile.open(file_path, "r:gz") as tar:
         tar.extractall(extract_path)
     # Remove tar file
-    # os.remove(file_path)
+    os.remove(file_path)
 
 
 def parse_grandstaff_dataset():
     for composer in os.listdir(GRANDSTAFF_PATH):
-        composer_path = os.path.join(GRANDSTAFF_PATH, composer)
+        old_composer_path = os.path.join(GRANDSTAFF_PATH, composer)
+        new_composer_path = os.path.join(GRANDSTAFF_PATH, composer + "_parsed")
 
         # Create a new folder structure for the composer
-        os.makedirs(os.path.join(composer_path, "wav"), exist_ok=True)
-        os.makedirs(os.path.join(composer_path, "krn"), exist_ok=True)
-        os.makedirs(os.path.join(composer_path, "bekrn"), exist_ok=True)
-        os.makedirs(os.path.join(composer_path, "img"), exist_ok=True)
-        os.makedirs(os.path.join(composer_path, "img_distorted"), exist_ok=True)
+        os.makedirs(os.path.join(new_composer_path, "wav"), exist_ok=True)
+        os.makedirs(os.path.join(new_composer_path, "krn"), exist_ok=True)
+        os.makedirs(os.path.join(new_composer_path, "bekrn"), exist_ok=True)
+        os.makedirs(os.path.join(new_composer_path, "img"), exist_ok=True)
+        os.makedirs(os.path.join(new_composer_path, "img_distorted"), exist_ok=True)
 
         # Move files to the new folder structure
-        for foldername, subfolders, filenames in os.walk(composer_path):
+        for foldername, subfolders, filenames in os.walk(old_composer_path):
             for filename in filenames:
                 if filename.startswith("."):
                     continue
+                new_filename = "_".join(
+                    foldername.replace(old_composer_path, "").split("/")[1:]
+                    + [filename]
+                )
                 if filename.endswith(".bekrn"):
                     shutil.move(
                         os.path.join(foldername, filename),
-                        os.path.join(composer_path, "bekrn", filename),
+                        os.path.join(new_composer_path, "bekrn", new_filename),
                     )
                 elif filename.endswith(".krn"):
                     shutil.move(
                         os.path.join(foldername, filename),
-                        os.path.join(composer_path, "krn", filename),
-                    )
-                elif filename.endswith(".jpg"):
-                    shutil.move(
-                        os.path.join(foldername, filename),
-                        os.path.join(composer_path, "img", filename),
+                        os.path.join(new_composer_path, "krn", new_filename),
                     )
                 elif filename.endswith("_distorted.jpg"):
                     shutil.move(
                         os.path.join(foldername, filename),
-                        os.path.join(composer_path, "img_distorted", filename),
+                        os.path.join(new_composer_path, "img_distorted", new_filename),
+                    )
+                elif filename.endswith(".jpg"):
+                    shutil.move(
+                        os.path.join(foldername, filename),
+                        os.path.join(new_composer_path, "img", new_filename),
                     )
                 else:
                     continue
 
-        # Remove the remaining folders and files
-        for f in os.listdir(composer_path):
-            if f not in ["wav", "krn", "bekrn", "img", "img_distorted"]:
-                shutil.rmtree(os.path.join(composer_path, f))
+        # Remove the old folder structure
+        shutil.rmtree(old_composer_path)
+
+        # Remove the "_parsed" suffix from the composer folder
+        os.rename(new_composer_path, old_composer_path)
 
 
 def krn2wav():
