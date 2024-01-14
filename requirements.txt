@@ -5,5 +5,6 @@ lightning
 torchinfo
 librosa
 sklearn
-lightning
-jupyter
+fire
+pyMV2H
+swalign==0.3.6
