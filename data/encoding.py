@@ -1,26 +1,30 @@
 import re
-import numpy as np
-import torch
+from typing import List, Union
 
-###################################################################### SPECIAL TOKENS:
+import numpy as np
+
+###################################################################### SPECIAL TOKENS
 
 CON_TOKEN = "<con>"  # Change-of-note (change-of-note) token
 COC_TOKEN = "<coc>"  # Change-of-column (change-of-voice) token
 COR_TOKEN = "<cor>"  # Change-of-row (change-of-event) token
 
-###################################################################### KrnConverter:
-
-# TODO:
-# - Comprobar que funciona con GrandStaff (todas las opciones de codificación)
-
+###################################################################### KRN PARSER
 
 ENCODING_OPTIONS = ["kern", "bekern"]
 
 
-class KrnConverter:
-    """Main Kern converter operations class."""
+class krnParser:
+    """Main Kern parser operations class."""
 
-    def __init__(self, encoding: str = "bekern", keep_ligatures: bool = True):
+    def __init__(self, encoding: str = "bekern") -> None:
+        # Check encoding
+        assert (
+            encoding in ENCODING_OPTIONS
+        ), f"You must chose one of the possible encoding options: {','.join(ENCODING_OPTIONS)}"
+
+        # Attributes
+        self.encoding = encoding
         self.header_word = "**kern" if encoding == "kern" else "**bekern"
         self.reserved_words = ["clef", "k[", "*M"]
         self.reserved_dot = "."
@@ -29,51 +33,44 @@ class KrnConverter:
         self.open_spine = "*^"
         self.close_spine = "*v"
         self.comment_symbols = ["*", "!"]
-        self.voice_change = "\t"
-        self.step_change = "\n"
-        self.keep_ligatures = keep_ligatures
 
-        # Convert function
-        assert (
-            encoding in ENCODING_OPTIONS
-        ), f'You must chose one of the possible encoding options: {",".join(ENCODING_OPTIONS)}'
-        self.encoding = encoding
-        self.convert_step = self._cleanKernFile
+    # ---------------------------------------------------------------------------- AUXILIARY FUNCTIONS
 
-    def _readSrcFile(self, file_path: str) -> list:
+    def _readSrcFile(self, file_path: str) -> np.ndarray:
         """Read polyphonic kern file and adequate the format for further processes."""
         with open(file_path) as fin:
             in_src = fin.read().splitlines()
-
         return np.array(in_src)
 
     def _postprocessKernSequence(self, in_score: list) -> list:
-        """Exchanging '*' for the actual symbol; removing ligatures (if so)"""
+        """Exchanging '*' for the actual symbol."""
 
-        # Retrieving positions with '*':
+        # Retrieving positions with '*'
         positions_elements = list(
             np.where(
                 np.array(
                     [
-                        ("*" in line) and ("*^" not in line) and ("*v" not in line)
+                        ("*" in line)
+                        and (self.open_spine not in line)
+                        and (self.close_spine not in line)
                         for line in in_score
                     ]
                 )
-                == True
+                is True
             )[0]
         )
         positions_voices = [
             np.where(np.array(in_score[idx]) == "*")[0] for idx in positions_elements
         ]
 
-        # For each position, we retrieve the last explicit clef symbol and include it in the stream:
+        # For each position, we retrieve the last explicit clef symbol and include it in the stream
         for it_position in range(len(positions_elements)):
             position_element = positions_elements[it_position]
             for position_voice in positions_voices[it_position]:
-                # Locating last position with the required number of voices (in case spines open/close):
+                # Locating last position with the required number of voices (in case spines open/close)
                 it_reference = position_element
                 end_search = False
-                while it_reference >= 0 and end_search == False:
+                while it_reference >= 0 and end_search is False:
                     if len(in_score[it_reference]) >= position_voice + 1:
                         it_reference -= 1
                     else:
@@ -93,28 +90,9 @@ class KrnConverter:
                             0
                         ]
                     ][position_voice]
-                except:
+                except Exception:
                     new_element = in_score[position_element][position_voice - 1]
                 in_score[position_element][position_voice] = new_element
-            pass
-        pass
-
-        # Removing ligatures (if so):
-        if not self.keep_ligatures:
-            for it_time in range(len(in_score)):
-                for pos in np.where(np.char.endswith(np.array(in_score[it_time]), "["))[
-                    0
-                ]:
-                    in_score[it_time][pos] = in_score[it_time][pos].replace("[", "")
-                pass
-
-                for pos in np.where(np.char.endswith(np.array(in_score[it_time]), "]"))[
-                    0
-                ]:
-                    if not np.char.startswith(in_score[it_time][pos], "*"):
-                        in_score[it_time][pos] = in_score[it_time][pos].replace("]", "")
-                    pass
-                pass
             pass
         pass
 
@@ -124,14 +102,14 @@ class KrnConverter:
         """Convert complete kern sequence to CLEAN kern format."""
         in_file = self._readSrcFile(file_path=file_path)
 
-        # Processing individual voices:
-        out_score = list()
+        # Processing individual voices
+        out_score = []
         for step in in_file:
-            # Splitting voices:
+            # Splitting voices
             voices = step.split("\t")
 
-            # Iterating through voices:
-            current_step = list()
+            # Iterating through voices
+            current_step = []
             for single_voice in voices:
                 try:
                     current_step.append(
@@ -139,18 +117,19 @@ class KrnConverter:
                             [self._cleanKernToken(u) for u in single_voice.split(" ")]
                         )
                     )
-                except:
+                except Exception:
+                    # self._cleanKernToken(u) is None
                     pass
             if len(current_step) > 0:
                 out_score.append(current_step)
         pass
 
-        # Postprocess obtained score:
+        # Postprocess obtained score
         out_score = self._postprocessKernSequence(out_score)
 
         return out_score
 
-    def _cleanKernToken(self, in_token: str) -> str:
+    def _cleanKernToken(self, in_token: str) -> Union[str, None]:
         """Convert a kern token to its CLEAN equivalent."""
         out_token = None  # Default
 
@@ -181,7 +160,7 @@ class KrnConverter:
         elif "=" in in_token:  # Bar lines
             out_token = "="
 
-        elif not "q" in in_token:
+        elif "q" not in in_token:
             if "rr" in in_token:
                 in_token = in_token.replace("·", "")  # Multirest
                 out_token = re.findall("rr[0-9]+", in_token)[0]
@@ -201,7 +180,9 @@ class KrnConverter:
             out_token = re.findall("\d*[a-gA-G]+[n#-]*[q]+", in_token)[0]
         return out_token
 
-    def encode(self, file_path: str) -> list:
+    # ---------------------------------------------------------------------------- ENCODE CALL
+
+    def encode(self, file_path: str) -> List[str]:
         y_clean = self._cleanKernFile(file_path)
         y_coded = []
 
@@ -217,38 +198,4 @@ class KrnConverter:
             if i != len(y_clean) - 1:
                 y_coded.append(COR_TOKEN)
 
-        # y_coded = [SOT_TOKEN] + y_coded + [EOT_TOKEN]
-
         return y_coded
-
-    # ---------------------------------------------------------------------------- CONVERT CALL
-
-    # def convert(self, src_file: str ) -> list:
-    #     out = self.convert_step(src_file).T
-    #     out_line = self.step_change.join([self.voice_change.join(voice) for voice in out])
-    #     return out_line
-
-
-if __name__ == "__main__":
-    import os
-
-    conv = KrnConverter(keep_ligatures=False)
-
-    ### Checking all files:
-    # base_path = 'data/'
-    # with open('dst.txt', 'w') as fout:
-    #     for root, dir_names, file_names in os.walk(base_path):
-    #         for single_file in file_names:
-    #             if single_file.endswith('bekrn'):
-    #                 target_file = os.path.join(root, single_file)
-    #                 try:
-    #                     res = conv.encode(target_file)
-    #                     fout.write("{} - {}\n".format(target_file, "Done!"))
-    #                 except:
-    #                     fout.write("{} - {}\n".format(target_file, "Fail!"))
-
-    # path = 'data/grandstaff/chopin/mazurkas/mazurka33-3/maj3_down_m-33-36.bekrn'
-
-    path = "data/grandstaff/beethoven/piano-sonatas/sonata01-2/maj2_down_m-10-15.bekrn"
-    res = conv.encode(path)
-    print(res)
