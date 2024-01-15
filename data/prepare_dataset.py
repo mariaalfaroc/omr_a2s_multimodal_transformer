@@ -105,10 +105,12 @@ def krn2wav():
     Save the wav files in the corresponding wav folder of each composer.
     Save the errors in a text file for each composer. Path: ./grandstaff/errors/composer.txt
     """
-    os.makedirs("./grandstaff/errors", exist_ok=True)
+    os.makedirs(os.path.join(GRANDSTAFF_PATH, "errors"), exist_ok=True)
 
     fs = FluidSynth(sample_rate=22050, sound_font=SOUND_FONT)
     for composer in os.listdir(GRANDSTAFF_PATH):
+        if composer == "errors" or composer.startswith("."):
+            continue
         print(f"Generating wav files for {composer}")
         composer_path = os.path.join(GRANDSTAFF_PATH, composer)
 
@@ -120,7 +122,7 @@ def krn2wav():
                     os.path.join(composer_path, "krn", krn_file)
                 )
             except Exception as err:
-                errors.append(krn_file + "\t" + type(err) + "\t" + str(err))
+                errors.append(krn_file + "\t" + str(type(err)) + "\t" + str(err))
                 # Remove the file and all its corresponding files
                 os.remove(os.path.join(composer_path, "krn", krn_file))
                 os.remove(
@@ -156,11 +158,14 @@ def krn2wav():
             os.remove(midi_file)
 
         # Save errors
-        print(f"{len(errors)} out of {id+1} files could not be converted to wav.")
-        errors = "\n".join(errors)
-        with open(os.path.join("./grandstaff/errors", "composer.txt"), "w") as f:
-            f.write(errors)
-        print(f"Errors saved to ./grandstaff/errors/{composer}.txt")
+        if len(errors) == 0:
+            print(f"All {id+1} files were converted to wav.")
+        else:
+            print(f"{len(errors)} out of {id+1} files could not be converted to wav.")
+            errors = "\n".join(errors)
+            with open(os.path.join("./grandstaff/errors", f"{composer}.txt"), "w") as f:
+                f.write(errors)
+            print(f"Errors saved to ./grandstaff/errors/{composer}.txt")
 
 
 ########################################################## CREATE PARTITIONS
@@ -178,8 +183,8 @@ def create_partitions():
     for composer in os.listdir(GRANDSTAFF_PATH):
         if (
             composer == "partitions"
-            and composer == "errors"
-            and composer.startswith(".")
+            or composer == "errors"
+            or composer.startswith(".")
         ):
             continue
 
@@ -192,8 +197,8 @@ def create_partitions():
             for f in os.listdir(os.path.join(composer_path, "wav"))
             if f.endswith(".wav") and not f.startswith(".")
         ]
-        train_val, test = train_test_split(samples, test_size=0.4, random_state=42)
-        train, val = train_test_split(train_val, test_size=0.5, random_state=42)
+        train, val_test = train_test_split(samples, test_size=0.4, random_state=42)
+        val, test = train_test_split(val_test, test_size=0.5, random_state=42)
 
         for partition, samples in zip(["train", "val", "test"], [train, val, test]):
             with open(
