@@ -16,7 +16,7 @@ seed_everything(42, benchmark=False)
 def train(
     ds_name,
     krn_encoding: str = "bekern",
-    input_modality: str = "both",  # "audio" or "image" or "both"
+    input_modality: str = "audio",  # "audio" or "image" or "both"
     use_distorted_images: bool = False,  # Only used if input_modality == "image" or "both"
     img_height: int = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
     attn_window: int = -1,
@@ -28,7 +28,7 @@ def train(
     torch.cuda.empty_cache()
 
     # TODO
-    # Right now, we can only train a unimodal model!
+    # Implement multimodal training
     if input_modality == "both":
         raise NotImplementedError("We can only train a unimodal model right now.")
 
