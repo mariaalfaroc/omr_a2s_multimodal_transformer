@@ -133,17 +133,17 @@ class ARDataModule(LightningDataModule):
         except AttributeError:
             return self.test_ds.max_seq_len
 
-    def get_max_image_len(self):
+    def get_max_image_height_and_width(self):
         try:
-            return self.train_ds.max_image_len
+            return self.train_ds.max_image_height, self.train_ds.max_image_width
         except AttributeError:
-            return self.test_ds.max_image_len
+            return self.test_ds.max_image_height, self.test_ds.max_image_width
 
-    def get_max_audio_len(self):
+    def get_max_audio_height_and_width(self):
         try:
-            return self.train_ds.max_audio_len
+            return self.train_ds.max_audio_height, self.train_ds.max_audio_width
         except AttributeError:
-            return self.test_ds.max_audio_len
+            return self.test_ds.max_audio_height, self.test_ds.max_audio_width
 
 
 ####################################################################################################
@@ -301,11 +301,11 @@ class ARDataset(Dataset):
     def set_max_lens(self):
         # Set the maximum lengths for the whole GRANDSTAFF collection:
         # 1) Get the maximum transcript length
-        # 2) Get the maximum image length
-        # 3) Get the maximum audio length
+        # 2) Get the maximum image size
+        # 3) Get the maximum audio size
         max_seq_len = 0
-        max_image_len = 0
-        max_audio_len = 0
+        max_image_height, max_image_width = 0, 0
+        max_audio_height, max_audio_width = 0, 0
         for foldername, subfolders, filenames in os.walk(GRANDSTAFF_PATH):
             for filename in filenames:
                 if filename.startswith("."):
@@ -322,16 +322,20 @@ class ARDataset(Dataset):
                     image = preprocess_image(
                         path=os.path.join(foldername, filename),
                     )
-                    max_image_len = max(max_image_len, image.shape[2])
+                    max_image_height = max(max_image_height, image.shape[1])
+                    max_image_width = max(max_image_width, image.shape[2])
                 elif filename.endswith(".wav"):
                     audio = preprocess_audio(path=os.path.join(foldername, filename))
-                    max_audio_len = max(max_audio_len, audio.shape[2])
+                    max_audio_height = max(max_audio_height, audio.shape[1])
+                    max_audio_width = max(max_audio_width, audio.shape[2])
                 else:
                     continue
 
         self.max_seq_len = max_seq_len
-        self.max_image_len = max_image_len
-        self.max_audio_len = max_audio_len
+        self.max_image_height = max_image_height
+        self.max_image_width = max_image_width
+        self.max_audio_height = max_audio_height
+        self.max_audio_width = max_audio_width
 
     # ---------------------------------------------------------------------------- GETTERS
 
