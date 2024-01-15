@@ -76,7 +76,7 @@ class Decoder(nn.Module):
     def forward(self, tgt, memory, memory_len):
         # memory is the output of the encoder with the 2D PE added, flattened and permuted
         # memory.shape = [batch_size, src_sec_len, emb_dim]
-        # src_sec_len = h * w (SPECTROGRAM UNFOLDING); emb_dim = out channels from encoder
+        # src_sec_len = h * w (IMAGE/SPECTROGRAM UNFOLDING); emb_dim = out channels from encoder
 
         # tgt is the target sequence shifted to the right
         # tgt.shape = [batch_size, tgt_sec_len]
