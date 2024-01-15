@@ -1,4 +1,7 @@
-import os, shutil
+import os
+import shutil
+
+
 import numpy as np
 from pyMV2H.utils.mv2h import MV2H
 from pyMV2H.utils.music import Music
@@ -6,13 +9,7 @@ from pyMV2H.metrics.mv2h import mv2h
 from music21 import converter as converterm21
 from pyMV2H.converter.midi_converter import MidiConverter as Converter
 
-from utils.kern import CON_TOKEN, COC_TOKEN, COR_TOKEN
-
-#### DEBUG
-# CON_TOKEN = '<con>'
-# COC_TOKEN = '<coc>'
-# COR_TOKEN = '<cor>'
-#### \DEBUG
+from data.encoding import CON_TOKEN, COC_TOKEN, COR_TOKEN
 
 
 def compute_metrics(y_true, y_pred, compute_mv2h=False):
@@ -25,7 +22,7 @@ def compute_metrics(y_true, y_pred, compute_mv2h=False):
     return metrics
 
 
-###################################################################### METRICS UTILS:
+#################################################################### SYM-ER AND SEQ-ER:
 
 
 def compute_ed_metrics(y_true, y_pred):
@@ -64,6 +61,9 @@ def compute_ed_metrics(y_true, y_pred):
     }
 
 
+#################################################################### MV2H:
+
+
 def compute_mv2h_metrics(y_true, y_pred):
     def removeSpineTokens(in_file):
         tokensToRemove = ["*^\n", "*v\n"]
@@ -80,7 +80,6 @@ def compute_mv2h_metrics(y_true, y_pred):
                         fout.write(element)
             except:
                 pass
-        return
 
     def krn2midi(in_file):
         removeSpineTokens(in_file)
@@ -103,49 +102,45 @@ def compute_mv2h_metrics(y_true, y_pred):
         os.remove(midi_file)
         return txt_file
 
-    """Polyphonic evaluation."""
+    ########################################### Polyphonic evaluation:
 
     def eval_as_polyphonic():
-        # Processing GT:
+        # Convert to MIDI
         reference_midi_file = krn2midi("gtKern.krn")
-
-        # Processing prediction:
         predicted_midi_file = krn2midi("predKern.krn")
 
-        # Converting to TXT:
-        ### True:
+        # Convert to TXT
         reference_txt_file = midi2txt(reference_midi_file)
-
-        ### Pred:
         predicted_txt_file = midi2txt(predicted_midi_file)
 
-        # Figures of merit:
+        # Compute MV2H
         reference_file = Music.from_file(reference_txt_file)
         transcription_file = Music.from_file(predicted_txt_file)
-
         res_dict = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
         try:
             res_dict = mv2h(reference_file, transcription_file)
         except:
             pass
 
+        # Remove auxiliar files
         os.remove(reference_txt_file)
         os.remove(predicted_txt_file)
 
         return res_dict
 
+    ########################################### Monophonic evaluation:
+
     def divide_voice(in_file, out_file, voice):
         bool_voiceExists = True
 
-        # Opening file:
+        # Open file
         with open(in_file) as fin:
             read_file = fin.readlines()
 
-        # Read voice:
+        # Read voice
         try:
             voice = [u.split("\t")[voice].strip() for u in read_file]
-
-            # Writing voice:
+            # Write voice
             with open(out_file, "w") as fout:
                 for token in voice:
                     fout.write(token + "\n")
@@ -153,8 +148,6 @@ def compute_mv2h_metrics(y_true, y_pred):
             bool_voiceExists = False
 
         return bool_voiceExists
-
-    """Monophonic evaluation."""
 
     def eval_as_monophonic():
         global_res_dict = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
@@ -164,28 +157,25 @@ def compute_mv2h_metrics(y_true, y_pred):
         while eval_voices:
             res_dict = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
 
-            # Processing GT:
+            # Processing ground-truth
             gtVoice_exists = divide_voice("gtKern.krn", "gtVoiceKern.krn", n_voices)
             if gtVoice_exists:
-                reference_midi_file = krn2midi("gtVoiceKern.krn")  # Converting to MIDI
-                reference_txt_file = midi2txt(reference_midi_file)  # Converting to TXT
+                reference_midi_file = krn2midi("gtVoiceKern.krn")  # To MIDI
+                reference_txt_file = midi2txt(reference_midi_file)  # To TXT
                 reference_file = Music.from_file(reference_txt_file)
 
-            # Processing prediction:
+            # Processing prediction
             predVoice_exists = divide_voice(
                 "predKern.krn", "predVoiceKern.krn", n_voices
             )
             if predVoice_exists:
-                predicted_midi_file = krn2midi(
-                    "predVoiceKern.krn"
-                )  # Converting to MIDI
-                predicted_txt_file = midi2txt(predicted_midi_file)  # Converting to TXT
+                predicted_midi_file = krn2midi("predVoiceKern.krn")  # To MIDI
+                predicted_txt_file = midi2txt(predicted_midi_file)  # To TXT
                 transcription_file = Music.from_file(predicted_txt_file)
 
             if gtVoice_exists and predVoice_exists:
                 n_voices += 1
-
-                # Figures of merit:
+                # Compute MV2H
                 try:
                     res_dict = mv2h(reference_file, transcription_file)
                     global_res_dict.__multi_pitch__ += res_dict.multi_pitch
@@ -195,17 +185,17 @@ def compute_mv2h_metrics(y_true, y_pred):
                     global_res_dict.__note_value__ += res_dict.note_value
                 except:
                     pass
-
             else:
                 eval_voices = False
             pass
 
+            # Remove auxiliar files
             if os.path.exists(reference_txt_file):
                 os.remove(reference_txt_file)
             if os.path.exists(predicted_txt_file):
                 os.remove(predicted_txt_file)
 
-        print(" ----- n_voices ----- ", n_voices)
+        print(" ----- n_voices ----- ", n_voices)  # TODO: Remove after debugging
         global_res_dict.__multi_pitch__ /= n_voices
         global_res_dict.__voice__ /= n_voices
         global_res_dict.__meter__ /= n_voices
@@ -214,17 +204,17 @@ def compute_mv2h_metrics(y_true, y_pred):
 
         return global_res_dict
 
-    """Sequence to kern"""
+    ########################################### Sequence to kern:
 
     def seq2kern(sequence, name_out):
         with open(name_out, "w") as fout:
             n_cols = (np.where(np.array(sequence) == COR_TOKEN)[0][0] + 1) // 2
 
-            # Kern header:
+            # Kern header
             fout.write("\t".join(["**kern"] * n_cols) + "\n")
 
-            # Iterating through the line:
-            line = list()
+            # Iterating through the line
+            line = []
             flag_CON_TOKEN = False
             for token in sequence:
                 if token == COR_TOKEN:
@@ -232,7 +222,7 @@ def compute_mv2h_metrics(y_true, y_pred):
                         if len(line) < n_cols:
                             line.extend(["."] * (n_cols - len(line)))
                         fout.write("\t".join(line) + "\n")
-                    line = list()
+                    line = []
                 elif token == COC_TOKEN:
                     pass
                 elif token == CON_TOKEN:
@@ -253,29 +243,35 @@ def compute_mv2h_metrics(y_true, y_pred):
                     pass
                 pass
             pass
-        return
+
+    ########################################### MV2H evaluation:
+
+    # TODO: How does iterate throught the sequences?
+    # y_true is a list of lists, each being a prediction
 
     MV2H_score = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
-    ### GROUND TRUTH:
-    # Creating GT kern file:
+    # GROUND-TRUTH
+    # Creating ground-truth kern file
     seq2kern(sequence=y_true, name_out="gtKern.krn")
 
-    ### PREDICTION:
-    # Creating predicted kern file:
+    # PREDICTION
+    # Creating predicted kern file
     seq2kern(sequence=y_pred, name_out="predKern.krn")
 
-    # Testing whether predicted Kern can be processed as polyphonic
+    # Testing whether predicted kern can be processed as polyphonic
     flag_polyphonic_kern = False
     try:
         a = converterm21.parse("predKern.krn").write("midi")
     except:
         flag_polyphonic_kern = False
 
-    if flag_polyphonic_kern:  # If predicted can be polyphonic -> Polyphonic evaluation
+    if flag_polyphonic_kern:
+        # TODO: It never enters here?
         res_dict = eval_as_polyphonic()
-    else:  # Otherwise -> Single-voice evaluation
+    else:
         res_dict = eval_as_monophonic()
 
+    # Updating global results
     MV2H_score.__multi_pitch__ += res_dict.multi_pitch
     MV2H_score.__voice__ += res_dict.voice
     MV2H_score.__meter__ += res_dict.meter
@@ -291,33 +287,10 @@ def compute_mv2h_metrics(y_true, y_pred):
         "mv2h": MV2H_score.mv2h,
     }
 
+    # Remove auxiliar files
     if os.path.exists("gtKern.krn"):
         os.remove("gtKern.krn")
     if os.path.exists("predKern.krn"):
         os.remove("predKern.krn")
 
     return mv2h_dict
-
-
-if __name__ == "__main__":
-    for idx in range(44):
-        with open("utils/gt/{}.krn".format(idx)) as f:
-            gt = f.readlines()[0].strip().split("\t")
-
-        with open("utils/hyp/{}.krn".format(idx)) as f:
-            hyp = f.readlines()[0].strip().split("\t")
-
-        print(
-            "{}.krn = {}".format(
-                idx, compute_metrics(y_true=gt, y_pred=hyp, compute_mv2h=True)
-            )
-        )
-
-    # idx = 1
-    # with open("utils/gt/{}.krn".format(idx)) as f:
-    #     gt = f.readlines()[0].strip().split("\t")
-    # with open("utils/hyp/{}.krn".format(idx)) as f:
-    #     hyp = f.readlines()[0].strip().split("\t")
-    # print("{}.krn = {}".format(idx, compute_metrics(y_true = gt, y_pred = hyp, compute_mv2h = True)))
-
-    print("end")
