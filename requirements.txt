@@ -4,7 +4,7 @@ torchvision
 lightning
 torchinfo
 librosa
-sklearn
+scikit-learn
 fire
 pyMV2H
 swalign==0.3.6
