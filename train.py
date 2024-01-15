@@ -74,7 +74,11 @@ def train(
     model_name += (
         "_distorted" if input_modality == "image" and use_distorted_images else ""
     )
-    model_name += f"_height{img_height}" if input_modality == "image" else ""
+    model_name += (
+        f"_height{img_height}"
+        if input_modality == "image" and img_height is not None
+        else ""
+    )
     model_name += f"_{krn_encoding}"
 
     # Train, validate and test

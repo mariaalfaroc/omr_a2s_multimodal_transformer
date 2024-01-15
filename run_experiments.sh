@@ -1,35 +1,19 @@
-#!/bin/sh
+#!/bin/bash
 
-###################################################  TRAIN ALL MODELS ON ALL COMPOSERS:
-
-mkdir -p results
-for train_composer in chopin; do #beethoven chopin hummel joplin mozart scarlatti-d all; do
-    mkdir -p results/$train_composer
-
-    ################################ DAN:
-    # Ligatures
-    #echo "Train Composer: $train_composer; Test Composer: $train_composer; Model: DAN_audio"
-    #python train.py --config config/audio2seq/grandstaff_$train_composer.gin > results/$train_composer/DAN_audio_$train_composer.txt
-
-    echo "Train Composer: $train_composer; Test Composer: $train_composer; Model: DAN_image"
-    python train.py --config config/image2seq/grandstaff_$train_composer.gin > results/$train_composer/DAN_image_$train_composer.txt
-done
-
-###################################################  TEST ALL MODELS AGAINST ALL COMPOSERS:
 
 # NOTE:
-# Hasta ahora solo hemos sacado el todos contra todos de los modelos DAN
-# Para los modelos de tipo CTC, solo hemos enfretando el modelo "All" contra los otros compositores
+# Not using distorted images for now
 
-# mkdir -p results
-# for train_composer in All Mozart Beethoven Haydn; do
-#     for test_composer in All Mozart Beethoven Haydn; do
-#         mkdir -p results/$train_composer\_Ligatures
-
-#         ################################ DAN:
-#         # Ligatures
-#         echo "Train Composer: $train_composer; Test Composer: $test_composer; Model: DAN_Ligatures"
-#         python test_img2seq.py --config config/IMG2Seq/Ligatures/DAN_Quartets_$test_composer\_Ligatures.gin --checkpoint_path weights/$train_composer\_Ligatures/DAN_Ligatures.ckpt > results/$train_composer\_Ligatures/DAN_$train_composer\_$test_composer\_Ligatures.txt
-
-#     done
-# done
+for input_modality in audio image; do
+    for krn_encoding in bekern kern; do
+        for train_ds in grandstaff beethoven chopin hummel joplin mozart scarlatti-d; do
+            python -u train.py --ds_name $train_ds --krn_encoding $krn_encoding --input_modality $input_modality --attn_window 100 --epochs 300 --patience 5 --batch_size 1 
+            for test_ds in grandstaff beethoven chopin hummel joplin mozart scarlatti-d; do
+                if [ $train_ds != $test_ds ]; then
+                    python -u test.py --ds_name $test_ds --krn_encoding $krn_encoding --input_modality $input_modality --checkpoint_path weights/$train_ds/$input_modality\_$krn_encoding.ckpt
+                fi
+            done
+        done
+    done
+done
+ 
