@@ -145,6 +145,19 @@ class ARDataModule(LightningDataModule):
         except AttributeError:
             return self.test_ds.max_audio_height, self.test_ds.max_audio_width
 
+    def get_max_input_size(self) -> tuple:
+        if self.input_modality == "image":
+            return self.get_max_image_height_and_width()
+        elif self.input_modality == "audio":
+            return self.get_max_audio_height_and_width()
+        elif self.input_modality == "both":
+            img_height, img_width = self.get_max_image_height_and_width()
+            audio_height, audio_width = self.get_max_audio_height_and_width()
+            return (
+                max(img_height, audio_height),
+                max(img_width, audio_width),
+            )
+
 
 ####################################################################################################
 
