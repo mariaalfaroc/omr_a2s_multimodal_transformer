@@ -1,0 +1,3 @@
+- Comprobar la carga de datos (datos normalizados, etc).
+- Comprobar que se enmascara correctamente la salida del encoder (cuando batch_size > 1); es decir, que se obvia el padding.
+- Hay errores en el código del MV2H. Comentarle a José.
