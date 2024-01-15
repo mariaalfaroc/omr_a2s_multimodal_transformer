@@ -5,12 +5,17 @@ import requests
 
 from midi2audio import FluidSynth
 from music21 import converter
+from sklearn.model_selection import train_test_split
 
 GRANDSTAFF_PATH = "./grandstaff"
 SOUND_FONT = "./data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2"
 
 
+########################################################## DOWNLOAD DATASET
+
+
 def download_and_extract_grandstaff_dataset():
+    """Download and extract the GRANDSTAFF dataset."""
     file_path = "grandstaff.tgz"
     extract_path = GRANDSTAFF_PATH
     os.makedirs(extract_path, exist_ok=True)
@@ -26,7 +31,21 @@ def download_and_extract_grandstaff_dataset():
     os.remove(file_path)
 
 
+########################################################## PARSE NEW DATASET FOLDER STRUCTURE
+
+
 def parse_grandstaff_dataset():
+    """
+    Parse the new folder structure of the GRANDSTAFF dataset.
+    The new folder structure is as follows:
+    grandstaff
+    ├── composer (beethoven, chopin, hummel, joplin, mozart, scarlatti-d)
+    │   ├── img
+    │   ├── img_distorted
+    │   ├── krn
+    │   ├── bekrn
+    │   └── wav
+    """
     for composer in os.listdir(GRANDSTAFF_PATH):
         old_composer_path = os.path.join(GRANDSTAFF_PATH, composer)
         new_composer_path = os.path.join(GRANDSTAFF_PATH, composer + "_parsed")
@@ -77,7 +96,15 @@ def parse_grandstaff_dataset():
         os.rename(new_composer_path, old_composer_path)
 
 
+########################################################## CONVERT KRNS TO WAVS
+
+
 def krn2wav():
+    """
+    Convert all krn files () to wav files.
+    Save the wav files in the corresponding wav folder of each composer.
+    Save the errors in a text file for each composer. Path: ./grandstaff/errors/composer.txt
+    """
     os.makedirs("./grandstaff/errors", exist_ok=True)
 
     fs = FluidSynth(sample_rate=22050, sound_font=SOUND_FONT)
@@ -136,7 +163,47 @@ def krn2wav():
         print(f"Errors saved to ./grandstaff/errors/{composer}.txt")
 
 
+########################################################## CREATE PARTITIONS
+
+
+def create_partitions():
+    """
+    Create train, val and test partitions for each composer.
+    Save the partitions in the corresponding partitions folder of each composer.
+    Path: ./grandstaff/partitions/composer/{train, val, test}.txt
+    """
+    partitions_path = os.path.join(GRANDSTAFF_PATH, "partitions")
+    os.makedirs(partitions_path, exist_ok=True)
+
+    for composer in os.listdir(GRANDSTAFF_PATH):
+        if (
+            composer == "partitions"
+            and composer == "errors"
+            and composer.startswith(".")
+        ):
+            continue
+
+        partition_folder = os.path.join(partitions_path, composer)
+        os.makedirs(partition_folder, exist_ok=True)
+
+        composer_path = os.path.join(GRANDSTAFF_PATH, composer)
+        samples = [
+            f.split(".wav")[0]
+            for f in os.listdir(os.path.join(composer_path, "wav"))
+            if f.endswith(".wav") and not f.startswith(".")
+        ]
+        train_val, test = train_test_split(samples, test_size=0.4, random_state=42)
+        train, val = train_test_split(train_val, test_size=0.5, random_state=42)
+
+        for partition, samples in zip(["train", "val", "test"], [train, val, test]):
+            with open(
+                os.path.join(partition_folder, f"{partition}.txt"), "w"
+            ) as partition_file:
+                partition_file.write("\n".join(samples))
+
+
 if __name__ == "__main__":
     download_and_extract_grandstaff_dataset()
     parse_grandstaff_dataset()
     krn2wav()
+    create_partitions()
