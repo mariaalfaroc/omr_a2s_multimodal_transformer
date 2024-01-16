@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import List, Dict
 
 
 import numpy as np
@@ -12,7 +13,11 @@ from pyMV2H.converter.midi_converter import MidiConverter as Converter
 from data.encoding import CON_TOKEN, COC_TOKEN, COR_TOKEN
 
 
-def compute_metrics(y_true, y_pred, compute_mv2h=False):
+def compute_metrics(
+    y_true: List[List[str]],
+    y_pred: List[List[str]],
+    compute_mv2h=False,
+) -> Dict[str, float]:
     # ------------------------------- Sym-ER and Seq-ER:
     metrics = compute_ed_metrics(y_true=y_true, y_pred=y_pred)
     if compute_mv2h:
@@ -25,7 +30,10 @@ def compute_metrics(y_true, y_pred, compute_mv2h=False):
 #################################################################### SYM-ER AND SEQ-ER:
 
 
-def compute_ed_metrics(y_true, y_pred):
+def compute_ed_metrics(
+    y_true: List[List[str]],
+    y_pred: List[List[str]],
+) -> Dict[str, float]:
     def levenshtein(a, b):
         n, m = len(a), len(b)
 
@@ -64,8 +72,11 @@ def compute_ed_metrics(y_true, y_pred):
 #################################################################### MV2H:
 
 
-def compute_mv2h_metrics(y_true, y_pred):
-    def removeSpineTokens(in_file):
+def compute_mv2h_metrics(
+    y_true: List[List[str]],
+    y_pred: List[List[str]],
+) -> Dict[str, float]:
+    def removeSpineTokens(in_file: str) -> None:
         tokensToRemove = ["*^\n", "*v\n"]
 
         with open(in_file) as fin:
@@ -81,7 +92,7 @@ def compute_mv2h_metrics(y_true, y_pred):
             except:
                 pass
 
-    def krn2midi(in_file):
+    def krn2midi(in_file: str) -> str:
         removeSpineTokens(in_file)
 
         a = converterm21.parse(in_file).write("midi")
@@ -90,7 +101,7 @@ def compute_mv2h_metrics(y_true, y_pred):
         os.remove(in_file)
         return midi_file
 
-    def midi2txt(midi_file):
+    def midi2txt(midi_file: str) -> str:
         txt_file = midi_file.replace("mid", "txt")
         converter = Converter(file=midi_file, output=txt_file)
         converter.convert_file()
@@ -130,7 +141,7 @@ def compute_mv2h_metrics(y_true, y_pred):
 
     ########################################### Monophonic evaluation:
 
-    def divide_voice(in_file, out_file, voice):
+    def divide_voice(in_file: str, out_file: str, voice: int) -> bool:
         bool_voiceExists = True
 
         # Open file
@@ -206,7 +217,7 @@ def compute_mv2h_metrics(y_true, y_pred):
 
     ########################################### Sequence to kern:
 
-    def seq2kern(sequence, name_out):
+    def seq2kern(sequence: List[str], name_out: str) -> None:
         with open(name_out, "w") as fout:
             n_cols = (np.where(np.array(sequence) == COR_TOKEN)[0][0] + 1) // 2
 
@@ -246,37 +257,48 @@ def compute_mv2h_metrics(y_true, y_pred):
 
     ########################################### MV2H evaluation:
 
-    # TODO: How does iterate throught the sequences?
-    # y_true is a list of lists, each being a prediction
-
     MV2H_score = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
-    # GROUND-TRUTH
-    # Creating ground-truth kern file
-    seq2kern(sequence=y_true, name_out="gtKern.krn")
+    for t, h in zip(y_true, y_pred):
+        # GROUND-TRUTH
+        # Creating ground-truth kern file
+        seq2kern(sequence=t, name_out="gtKern.krn")
 
-    # PREDICTION
-    # Creating predicted kern file
-    seq2kern(sequence=y_pred, name_out="predKern.krn")
+        # PREDICTION
+        # Creating predicted kern file
+        seq2kern(sequence=h, name_out="predKern.krn")
 
-    # Testing whether predicted kern can be processed as polyphonic
-    flag_polyphonic_kern = False
-    try:
-        a = converterm21.parse("predKern.krn").write("midi")
-    except:
+        # Testing whether predicted kern can be processed as polyphonic
         flag_polyphonic_kern = False
+        try:
+            a = converterm21.parse("predKern.krn").write("midi")
+        except:
+            flag_polyphonic_kern = False
 
-    if flag_polyphonic_kern:
-        # TODO: It never enters here?
-        res_dict = eval_as_polyphonic()
-    else:
-        res_dict = eval_as_monophonic()
+        if flag_polyphonic_kern:
+            # TODO: It never enters here?
+            res_dict = eval_as_polyphonic()
+        else:
+            res_dict = eval_as_monophonic()
 
-    # Updating global results
-    MV2H_score.__multi_pitch__ += res_dict.multi_pitch
-    MV2H_score.__voice__ += res_dict.voice
-    MV2H_score.__meter__ += res_dict.meter
-    MV2H_score.__harmony__ += res_dict.harmony
-    MV2H_score.__note_value__ += res_dict.note_value
+        # Updating global results
+        MV2H_score.__multi_pitch__ += res_dict.multi_pitch
+        MV2H_score.__voice__ += res_dict.voice
+        MV2H_score.__meter__ += res_dict.meter
+        MV2H_score.__harmony__ += res_dict.harmony
+        MV2H_score.__note_value__ += res_dict.note_value
+
+        # Remove auxiliar files
+        if os.path.exists("gtKern.krn"):
+            os.remove("gtKern.krn")
+        if os.path.exists("predKern.krn"):
+            os.remove("predKern.krn")
+
+    # Computing average
+    MV2H_score.__multi_pitch__ /= len(y_true)
+    MV2H_score.__voice__ /= len(y_true)
+    MV2H_score.__meter__ /= len(y_true)
+    MV2H_score.__harmony__ /= len(y_true)
+    MV2H_score.__note_value__ /= len(y_true)
 
     mv2h_dict = {
         "multi-pitch": MV2H_score.__multi_pitch__,
@@ -286,11 +308,5 @@ def compute_mv2h_metrics(y_true, y_pred):
         "note_value": MV2H_score.__note_value__,
         "mv2h": MV2H_score.mv2h,
     }
-
-    # Remove auxiliar files
-    if os.path.exists("gtKern.krn"):
-        os.remove("gtKern.krn")
-    if os.path.exists("predKern.krn"):
-        os.remove("predKern.krn")
 
     return mv2h_dict
