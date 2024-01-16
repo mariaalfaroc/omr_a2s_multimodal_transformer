@@ -171,6 +171,32 @@ def krn2wav():
 ########################################################## CREATE PARTITIONS
 
 
+def check_and_create_partitions():
+    """
+    Check if partitions have been created for each composer.
+    If not, create them.
+    """
+    for composer in os.listdir(GRANDSTAFF_PATH):
+        if (
+            composer == "partitions"
+            or composer == "errors"
+            or composer.startswith(".")
+        ):
+            continue
+
+        partition_folder = os.path.join(GRANDSTAFF_PATH, "partitions", composer)
+        if not os.path.exists(partition_folder):
+            create_partitions()
+            break
+        else:
+            train = os.path.join(partition_folder, "train.txt")
+            val = os.path.join(partition_folder, "val.txt")
+            test = os.path.join(partition_folder, "test.txt")
+            if not os.path.exists(train) or not os.path.exists(val) or not os.path.exists(test):
+                create_partitions()
+                break
+
+
 def create_partitions():
     """
     Create train, val and test partitions for each composer.
@@ -208,7 +234,12 @@ def create_partitions():
 
 
 if __name__ == "__main__":
+    print("Downloading and extracting GRANDSTAFF dataset...")
     download_and_extract_grandstaff_dataset()
+    print("Parsing GRANDSTAFF dataset...")
     parse_grandstaff_dataset()
+    print("Converting krn files to wav files...")
     krn2wav()
-    create_partitions()
+    print("Creating partitions...")
+    check_and_create_partitions()
+    print("Done!")
