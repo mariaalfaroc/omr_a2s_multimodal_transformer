@@ -177,27 +177,27 @@ def check_and_create_partitions():
     If not, create them.
     """
     for composer in os.listdir(GRANDSTAFF_PATH):
-        if (
-            composer == "partitions"
-            or composer == "errors"
-            or composer.startswith(".")
-        ):
+        if composer == "partitions" or composer == "errors" or composer.startswith("."):
             continue
 
         partition_folder = os.path.join(GRANDSTAFF_PATH, "partitions", composer)
         if not os.path.exists(partition_folder):
-            create_partitions()
+            create_composer_partitions()
             break
         else:
             train = os.path.join(partition_folder, "train.txt")
             val = os.path.join(partition_folder, "val.txt")
             test = os.path.join(partition_folder, "test.txt")
-            if not os.path.exists(train) or not os.path.exists(val) or not os.path.exists(test):
-                create_partitions()
+            if (
+                not os.path.exists(train)
+                or not os.path.exists(val)
+                or not os.path.exists(test)
+            ):
+                create_composer_partitions()
                 break
 
 
-def create_partitions():
+def create_composer_partitions():
     """
     Create train, val and test partitions for each composer.
     Save the partitions in the corresponding partitions folder of each composer.
@@ -207,11 +207,7 @@ def create_partitions():
     os.makedirs(partitions_path, exist_ok=True)
 
     for composer in os.listdir(GRANDSTAFF_PATH):
-        if (
-            composer == "partitions"
-            or composer == "errors"
-            or composer.startswith(".")
-        ):
+        if composer == "partitions" or composer == "errors" or composer.startswith("."):
             continue
 
         partition_folder = os.path.join(partitions_path, composer)
@@ -233,6 +229,31 @@ def create_partitions():
                 partition_file.write("\n".join(samples))
 
 
+def create_grandstaff_partitions():
+    """
+    Create train, val and test partitions for the GRANDSTAFF dataset.
+    Use the partitions of each composer.
+    Save the partitions in the corresponding partitions folder of the GRANDSTAFF dataset.
+    """
+    partitions_path = os.path.join(GRANDSTAFF_PATH, "partitions")
+    grandstaff_partitions_path = os.path.join(partitions_path, "grandstaff")
+    os.makedirs(grandstaff_partitions_path, exist_ok=True)
+
+    for composer in os.listdir(partitions_path):
+        if composer == "grandstaff" or composer.startswith("."):
+            continue
+        for partition in ["train", "val", "test"]:
+            with open(
+                os.path.join(partitions_path, composer, f"{partition}.txt"), "r"
+            ) as partition_file:
+                samples = partition_file.read().splitlines()
+                samples = [f"{composer}\t{s}" for s in samples]
+                with open(
+                    os.path.join(grandstaff_partitions_path, f"{partition}.txt"), "a"
+                ) as grandstaff_partition_file:
+                    grandstaff_partition_file.write("\n".join(samples) + "\n")
+
+
 if __name__ == "__main__":
     print("Downloading and extracting GRANDSTAFF dataset...")
     download_and_extract_grandstaff_dataset()
@@ -242,4 +263,5 @@ if __name__ == "__main__":
     krn2wav()
     print("Creating partitions...")
     check_and_create_partitions()
+    create_grandstaff_partitions()
     print("Done!")
