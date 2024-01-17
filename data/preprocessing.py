@@ -10,7 +10,6 @@ from torchvision import transforms
 MEMORY = joblib.memory.Memory("./joblib_cache", mmap_mode="r", verbose=0)
 NUM_CHANNELS = 1
 AUDIO_HEIGHT = NUM_FREQ_BINS = 195
-IMAGE_HEIGHT = 256
 TOTENSOR = transforms.ToTensor()
 
 
