@@ -133,6 +133,8 @@ class krnParser:
         """Convert a kern token to its CLEAN equivalent."""
         out_token = None  # Default
 
+        in_token = in_token.replace("·", "")  # Remove dot separator in bekern
+
         if any(
             [u in in_token for u in self.reserved_words]
         ):  # Relevant reserved tokens
@@ -162,22 +164,23 @@ class krnParser:
 
         elif "q" not in in_token:
             if "rr" in in_token:
-                in_token = in_token.replace("·", "")  # Multirest
-                out_token = re.findall("rr[0-9]+", in_token)[0]
+                out_token = re.findall("rr[0-9]+", in_token)[0]  # Multirest
             elif "r" in in_token:
-                in_token = in_token.replace("·", "")  # Rest
-                out_token = in_token.split("r")[0] + "r"
+                out_token = in_token.split("r")[0] + "r"  # Rest
             else:
-                in_token = in_token.replace("·", "")  # Music note
-                out_token = re.findall("\d+[.]*[a-gA-G]+[n#-]*", in_token)[0]
+                out_token = re.findall("\d+[.]*[a-gA-G]+[n#-]*", in_token)[
+                    0
+                ]  # Music note
                 if "[" in in_token:
                     out_token += "["
                 if "]" in in_token:
                     out_token += "]"
 
         elif "q" in in_token:
-            in_token = in_token.replace("·", "")  # Music note with q
-            out_token = re.findall("\d*[a-gA-G]+[n#-]*[q]+", in_token)[0]
+            out_token = re.findall("\d*[a-gA-G]+[n#-]*[q]+", in_token)[
+                0
+            ]  # Music note with q
+
         return out_token
 
     # ---------------------------------------------------------------------------- ENCODE CALL
