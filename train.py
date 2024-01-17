@@ -10,7 +10,7 @@ from transformer.model import Transformer
 from data.ar_dataset import ARDataModule
 from utils.seed import seed_everything
 
-seed_everything(42, benchmark=False)
+seed_everything(42, deterministic=False, benchmark=False)
 
 
 def train(
@@ -118,7 +118,7 @@ def train(
         callbacks=callbacks,
         max_epochs=epochs,
         check_val_every_n_epoch=5,
-        deterministic=True,
+        deterministic=False,
         benchmark=False,
         precision="16-mixed",  # Mixed precision training
     )
