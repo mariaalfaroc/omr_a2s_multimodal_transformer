@@ -7,10 +7,10 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from lightning.pytorch import LightningDataModule
 
-from encoding import krnParser
-from prepare_dataset import GRANDSTAFF_PATH
+from data.encoding import krnParser
+from data.prepare_dataset import GRANDSTAFF_PATH
 from transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION
-from preprocessing import (
+from data.preprocessing import (
     preprocess_audio,
     preprocess_image,
     ar_batch_preparation_multimodal,
@@ -146,6 +146,9 @@ class ARDataModule(LightningDataModule):
             return self.test_ds.max_audio_height, self.test_ds.max_audio_width
 
     def get_max_input_size(self) -> tuple:
+        # NOTE
+        # This would end up depending on the future multimodal transformer
+        # implementation. For now, we assume that the input size is the same.
         if self.input_modality == "image":
             return self.get_max_image_height_and_width()
         elif self.input_modality == "audio":
@@ -332,8 +335,11 @@ class ARDataset(Dataset):
                         max_seq_len, len(transcript) + 1
                     )  # +1 for EOS token
                 elif filename.endswith(self.img_extension):
+                    if "distorted" in filename and not self.use_distorted_images:
+                        continue
                     image = preprocess_image(
                         path=os.path.join(foldername, filename),
+                        img_height=self.img_height,
                     )
                     max_image_height = max(max_image_height, image.shape[1])
                     max_image_width = max(max_image_width, image.shape[2])
@@ -370,7 +376,7 @@ class ARDataset(Dataset):
         return x, y
 
     def __getitemboth__(self, idx):
-        xi = preprocess_image(path=self.X[0][idx])
+        xi = preprocess_image(path=self.X[0][idx], img_height=self.img_height)
         xa = preprocess_audio(path=self.X[1][idx])
         y = self.preprocess_transcript(path=self.Y[idx])
         if self.partition_type == "train":
@@ -387,7 +393,7 @@ class ARDataset(Dataset):
         return getattr(self, "__getitem" + self.input_modality + "__")(idx)
 
     def preprocess_transcript(self, path: str):
-        y = self.krn_parser.encode(src_file=path)
+        y = self.krn_parser.encode(file_path=path)
         y = [SOS_TOKEN] + y + [EOS_TOKEN]
         y = [self.w2i[w] for w in y]
         return torch.tensor(y, dtype=torch.int64)
