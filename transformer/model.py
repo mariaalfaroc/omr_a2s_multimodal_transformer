@@ -7,8 +7,8 @@ from torch.nn import CrossEntropyLoss
 from torchinfo import summary
 from lightning.pytorch import LightningModule
 
-from decoder import Decoder
-from encoder import Encoder, HEIGHT_REDUCTION, WIDTH_REDUCTION
+from transformer.decoder import Decoder
+from transformer.encoder import Encoder, HEIGHT_REDUCTION, WIDTH_REDUCTION
 from utils.metrics import compute_metrics
 from data.preprocessing import NUM_CHANNELS
 from data.ar_dataset import SOS_TOKEN, EOS_TOKEN
