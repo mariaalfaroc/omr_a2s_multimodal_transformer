@@ -26,7 +26,7 @@ class krnParser:
         # Attributes
         self.encoding = encoding
         self.header_word = "**kern" if encoding == "kern" else "**bekern"
-        self.reserved_words = ["clef", "k[", "*M"]
+        self.reserved_words = ["clef", "*k[", "*M"]
         self.reserved_dot = "."
         self.reserved_dot_EncodedCharacter = "DOT"
         self.clef_change_other_voices = "*"
