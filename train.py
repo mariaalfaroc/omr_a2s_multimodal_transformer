@@ -38,7 +38,7 @@ def train(
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
     print(
-        f"\tUse distorted images: {use_distorted_images} used if input_modality in ['image', 'both'])"
+        f"\tUse distorted images: {use_distorted_images} (used if input_modality in ['image', 'both'])"
     )
     print(f"\tImage height: {img_height} (used if input_modality in ['image', 'both'])")
     print(f"\tAttention window: {attn_window}")
