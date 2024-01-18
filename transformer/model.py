@@ -198,3 +198,32 @@ class Transformer(LightningModule):
 
     def on_test_epoch_end(self):
         return self.on_validation_epoch_end(name="test", print_random_samples=True)
+
+    ##################################################################### FOR LATE MULTIMODAL FUSION:
+
+    def get_pred_seq_and_pred_prob_seq(self, x):
+        assert x.size(0) == 1, "Inference only supports batch_size = 1"
+
+        # Encoder
+        x = self.encoder(x=x)
+        # Prepare for decoder
+        # 2D PE + flatten + permute
+        x = self.pos_2d(x)
+        x = x.flatten(2).permute(0, 2, 1).contiguous()
+        # Autoregressive decoding
+        y_in = torch.tensor([self.w2i[SOS_TOKEN]]).unsqueeze(0).long().to(x.device)
+        yhat = []
+        yhat_prob = []
+        for _ in range(self.max_seq_len):
+            y_out_hat = self.decoder(tgt=y_in, memory=x, memory_len=None)
+            y_out_hat = y_out_hat[0, :, -1]  # Last token
+            y_out_hat_prob, y_out_hat_token = y_out_hat.topk(k=1, dim=-1)
+            y_out_hat_word = self.i2w[y_out_hat_token.item()]
+            yhat.append(y_out_hat_word)
+            yhat_prob.append(y_out_hat_prob.item())
+            if y_out_hat_word == EOS_TOKEN:
+                break
+
+            y_in = torch.cat([y_in, y_out_hat_token.long().to(x.device)], dim=1)
+
+        return yhat, yhat_prob
