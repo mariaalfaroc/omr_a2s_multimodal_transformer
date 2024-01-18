@@ -27,15 +27,15 @@ def test(
     # TODO
     # Implement multimodal testing
     if input_modality == "both":
-        raise NotImplementedError("We can only perform unimodal testing right now.")
+        raise NotImplementedError(
+            "We can only perform unimodal model testing right now."
+        )
 
     # Check if checkpoint path is empty or does not exist
     if checkpoint_path == "":
-        print("Checkpoint path not provided")
-        return
+        raise ValueError("Checkpoint path not provided")
     if not os.path.exists(checkpoint_path):
-        print(f"Checkpoint path {checkpoint_path} does not exist")
-        return
+        raise FileNotFoundError(f"Checkpoint path {checkpoint_path} does not exist")
 
     # Get source dataset name
     _, src_ds_name, model_name = checkpoint_path.split("/")
@@ -47,7 +47,7 @@ def test(
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
     print(
-        f"\tUse distorted images: {use_distorted_images} used if input_modality in ['image', 'both'])"
+        f"\tUse distorted images: {use_distorted_images} (used if input_modality in ['image', 'both'])"
     )
     print(f"\tImage height: {img_height} (used if input_modality in ['image', 'both'])")
     print(f"\tCheckpoint path: {checkpoint_path}")
