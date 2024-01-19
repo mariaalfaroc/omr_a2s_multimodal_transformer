@@ -224,6 +224,6 @@ class Transformer(LightningModule):
             if y_out_hat_word == EOS_TOKEN:
                 break
 
-            y_in = torch.cat([y_in, y_out_hat_token.long().to(x.device)], dim=1)
+            y_in = torch.cat([y_in, y_out_hat_token.unsqueeze(0).long().to(x.device)], dim=1)
 
         return yhat, yhat_prob

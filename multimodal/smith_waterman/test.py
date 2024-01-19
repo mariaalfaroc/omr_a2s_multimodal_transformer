@@ -1,3 +1,6 @@
+import sys
+sys.path.append("./")
+
 import gc
 import os
 import random
@@ -5,6 +8,7 @@ import random
 import fire
 import torch
 import swalign
+from rich.progress import track
 from lightning.pytorch.loggers.wandb import WandbLogger
 
 from utils.metrics import compute_metrics
@@ -101,22 +105,21 @@ def test(
     test_loader = datamodule.test_dataloader()
 
     ################################################ FIRST PART: OBTAIN INDIVIDUAL PREDICTIONS
-    print("Obtaining individual predictions...")
     # Iterate over test set
     Y = []
     IMG_YHAT, IMG_YHAT_PROB = [], []
     AUDIO_YHAT, AUDIO_YHAT_PROB = [], []
     with torch.no_grad():
-        for batch in test_loader:
+        for batch in track(test_loader, description="Obtaining individual predictions..."):
             xi, xa, y = batch
 
             # Get image model prediction
-            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(xi)
+            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(xi.to(image_model.device))
             IMG_YHAT.append(img_yhat)
             IMG_YHAT_PROB.append(img_yhat_prob)
 
             # Get audio model prediction
-            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(xa)
+            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(xa.to(audio_model.device))
             AUDIO_YHAT.append(audio_yhat)
             AUDIO_YHAT_PROB.append(audio_yhat_prob)
 
@@ -125,16 +128,15 @@ def test(
             Y.append(y)
 
     ################################################ SECOND PART: PERFORM SMITH-WATERMAN FUSION
-    print("Performing Smith-Waterman fusion...")
     # Obtain the callable object of swalign library that contains the align() method that performs the alignment
     scoring = swalign.NucleotideScoringMatrix(match, mismatch)
     # Gap penalty designates scores for insertion or deletion
     sw = swalign.LocalAlignment(scoring, gap_penalty=gap_penalty)
     # Perform the multimodal combination at prediction level
     YHAT = []
-    for r, r_prob, q, q_prob in zip(
+    for r, r_prob, q, q_prob in track(zip(
         IMG_YHAT, IMG_YHAT_PROB, AUDIO_YHAT, AUDIO_YHAT_PROB
-    ):
+    ), description="Performing Smith-Waterman fusion..."):
         # Prepare for swalign computation
         r, q, swa2w = swalign_preprocess(r, q)
         # Smith-Waterman local alignment -> ref, query
