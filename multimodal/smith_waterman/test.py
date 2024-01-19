@@ -154,7 +154,9 @@ def test(
     metrics = compute_metrics(y_true=Y, y_pred=YHAT)
 
     # Log metrics to wandb
-    wandb_logger.log_metrics(metrics)
+    wandb_logger.log_metrics(metrics, step=0)
+    for k, v in metrics.items():
+        print(f"\t{k}: {v}")
 
     # Print random samples
     index = random.randint(0, len(Y) - 1)
