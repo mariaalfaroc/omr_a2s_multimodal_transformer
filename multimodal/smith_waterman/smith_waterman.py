@@ -3,35 +3,31 @@ from typing import List, Dict, Tuple
 import swalign
 
 SWALIGN_VOCAB = [
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-    "i",
-    "j",
-    "k",
-    "l",
-    "m",
-    "n",
-    "o",
-    "p",
-    "q",
-    "r",
-    "s",
-    "t",
-    "u",
-    "v",
-    "w",
-    "x",
-    "y",
-    "z",
+    "Ä",
+    "Ë",
+    "Ï",
+    "Ö",
+    "Ü",
+    "Â",
+    "Ê",
+    "Î",
+    "Ô",
+    "Û",
+    "À",
+    "È",
+    "Ì",
+    "Ò",
+    "Ù",
+    "Á",
+    "É",
+    "Í",
+    "Ó",
+    "Ú",
+    "·",
     "A",
     "B",
     "C",
+    "Ç",
     "D",
     "E",
     "F",
@@ -43,6 +39,7 @@ SWALIGN_VOCAB = [
     "L",
     "M",
     "N",
+    "Ñ",
     "O",
     "P",
     "Q",
@@ -59,8 +56,11 @@ SWALIGN_VOCAB = [
     "%",
     "&",
     "/",
+    ",",
     "(",
     ")",
+    "[",
+    "]",
     "=",
     "?",
     "¿",
@@ -74,6 +74,7 @@ SWALIGN_VOCAB = [
     ";",
     ":",
     "^",
+    "@",
     "0",
     "1",
     "2",
@@ -209,15 +210,17 @@ def get_alignment(
         # 3) A sequence misses a token (mv == " ", (qv or rv) == "-")-> include that of the other
         if mv == "|":
             # Scenario 1
-            assert qv == rv
+            assert qv == rv, f"qv and rv should be equal! (qv: {qv}, rv: {rv})"
             alignment += qv
         elif mv == ".":
             # Scenario 2
-            assert qv != rv
+            assert qv != rv, f"qv and rv should be different! (qv: {qv}, rv: {rv})"
             alignment += qv if qv_prob >= rv_prob else rv
         elif mv == " ":
             # Scenario 3
-            assert qv == "-" or rv == "-"
+            assert (
+                qv == "-" or rv == "-"
+            ), f"qv or rv should be '-'! (qv: {qv}, rv: {rv})"
             alignment += qv if rv == "-" else rv
     return alignment
 
