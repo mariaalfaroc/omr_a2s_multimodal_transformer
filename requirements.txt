@@ -9,3 +9,4 @@ fire
 pyMV2H
 swalign==0.3.6
 wandb
+rich
