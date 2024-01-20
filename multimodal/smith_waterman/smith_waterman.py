@@ -2,91 +2,12 @@ from typing import List, Dict, Tuple
 
 import swalign
 
-SWALIGN_VOCAB = [
-    "Ä",
-    "Ë",
-    "Ï",
-    "Ö",
-    "Ü",
-    "Â",
-    "Ê",
-    "Î",
-    "Ô",
-    "Û",
-    "À",
-    "È",
-    "Ì",
-    "Ò",
-    "Ù",
-    "Á",
-    "É",
-    "Í",
-    "Ó",
-    "Ú",
-    "·",
-    "A",
-    "B",
-    "C",
-    "Ç",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-    "Ñ",
-    "O",
-    "P",
-    "Q",
-    "R",
-    "S",
-    "T",
-    "U",
-    "V",
-    "W",
-    "X",
-    "Y",
-    "Z",
-    "$",
-    "%",
-    "&",
-    "/",
-    ",",
-    "(",
-    ")",
-    "[",
-    "]",
-    "=",
-    "?",
-    "¿",
-    "*",
-    "<",
-    ">",
-    "+",
-    "#",
-    "{",
-    "}",
-    ";",
-    ":",
-    "^",
-    "@",
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-]
-
+SWALIGN_RESERVED_WORDS = ["¡", "!", "|", ".", "-", " ", "/", "-//-", "    " ]
+SWALIGN_VOCAB = [chr(i).upper() for i in range(300)]
+SWALIGN_VOCAB = [i for i in SWALIGN_VOCAB if i not in SWALIGN_RESERVED_WORDS]
+SWALIGN_VOCAB = [i for i in SWALIGN_VOCAB if len(i) == 1]
+SWALIGN_VOCAB = sorted(set(SWALIGN_VOCAB)) 
+# len(SWALIGN_VOCAB) = 214; the maximum number of unique tokens in a sequence is 175
 
 def swalign_preprocess(r: List[str], q: List[str]) -> Tuple[str, str, Dict[str, str]]:
     """
@@ -96,7 +17,7 @@ def swalign_preprocess(r: List[str], q: List[str]) -> Tuple[str, str, Dict[str, 
     :return: Tuple of (reference, query, swa2w), where swa2w is a dictionary that maps swalign tokens to original tokens
     """
     current_vocab = sorted(set(r + q))
-    assert len(current_vocab) < len(SWALIGN_VOCAB), "Too many tokens for swalign!"
+    assert len(current_vocab) < len(SWALIGN_VOCAB), f"Too many tokens for swalign! (len_current_vocab: {len(current_vocab)}, len_swalign_vocab: {len(SWALIGN_VOCAB)})"
     w2swa = dict(zip(current_vocab, SWALIGN_VOCAB))
     swa2w = dict(zip(SWALIGN_VOCAB, current_vocab))
     r = ["¡"] + [w2swa[i] for i in r] + ["!"]
