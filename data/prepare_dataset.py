@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import tarfile
 import requests
@@ -203,11 +204,28 @@ def create_composer_partitions():
     Save the partitions in the corresponding partitions folder of each composer.
     Path: ./grandstaff/partitions/composer/{train, val, test}.txt
     """
+
+    def extract_org_name(name):
+        """
+        Utility function to extract the original name of a file.
+        Examples:
+            keyboard-sonatas_L337K336_maj2_down_m-73-76 -> keyboard-sonatas_L337K336_m-73-76
+            keyboard-sonatas_L340K476_original_m-51-56 -> keyboard-sonatas_L340K476_m-51-56
+            piano-sonatas_sonata01-1_min3_down_m-49-53 -> piano-sonatas_sonata01-1_m-49-53
+            piano-sonatas_sonata16-1_original_m-121-126 -> piano-sonatas_sonata16-1_m-121-126
+        """
+        return re.sub(r"_(maj\d+|min\d+|original|up|down)", "", name)
+
     partitions_path = os.path.join(GRANDSTAFF_PATH, "partitions")
     os.makedirs(partitions_path, exist_ok=True)
 
     for composer in os.listdir(GRANDSTAFF_PATH):
-        if composer == "partitions" or composer == "errors" or composer.startswith("."):
+        if (
+            composer == "partitions"
+            or composer == "errors"
+            or composer == "vocabs"
+            or composer.startswith(".")
+        ):
             continue
 
         partition_folder = os.path.join(partitions_path, composer)
@@ -219,8 +237,21 @@ def create_composer_partitions():
             for f in os.listdir(os.path.join(composer_path, "wav"))
             if f.endswith(".wav") and not f.startswith(".")
         ]
-        train, val_test = train_test_split(samples, test_size=0.4, random_state=42)
-        val, test = train_test_split(val_test, test_size=0.5, random_state=42)
+
+        # Test samples should be "original" samples that are not transposed
+        # That is, we cannot have a original sample in the test set and
+        # the same but transposed (maj2, min3, etc.) sample in the train set
+        test = [s for s in samples if "original" in s]
+        org_test = [extract_org_name(s) for s in test]
+        train_val = []
+        for s in samples:
+            if s in test:
+                continue
+            org_name = extract_org_name(s)
+            if org_name not in org_test:
+                train_val.append(s)
+
+        train, val = train_test_split(train_val, test_size=0.2, random_state=42)
 
         for partition, samples in zip(["train", "val", "test"], [train, val, test]):
             with open(
