@@ -1,3 +1,4 @@
+import os
 import gc
 
 import fire
@@ -11,6 +12,10 @@ from data.ar_dataset import ARDataModule
 from utils.seed import seed_everything
 
 seed_everything(42, deterministic=False, benchmark=False)
+
+# Set WANDB_API_KEY
+with open("wandb_api_key.txt", "r") as f:
+    os.environ["WANDB_API_KEY"] = f.read().strip()
 
 
 def train(
@@ -104,7 +109,6 @@ def train(
             mode="min",
             strict=True,
             check_finite=True,
-            divergence_threshold=100.00,
             check_on_train_epoch_end=False,
         ),
     ]
@@ -114,6 +118,7 @@ def train(
             group=model_name,
             name=f"Train-{ds_name}_Test-{ds_name}",
             log_model=False,
+            entity="grfia",
         ),
         callbacks=callbacks,
         max_epochs=epochs,

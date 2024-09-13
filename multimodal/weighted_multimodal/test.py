@@ -7,20 +7,12 @@ import random
 
 import fire
 import torch
-import swalign
 from rich.progress import track
 from lightning.pytorch.loggers.wandb import WandbLogger
 
 from utils.metrics import compute_metrics
 from transformer.model import Transformer
-from data.ar_dataset import ARDataModule
-from multimodal.smith_waterman.smith_waterman import (
-    swalign_preprocess,
-    undo_swalign_preprocess,
-    dump,
-    preprocess_prob,
-    get_alignment,
-)
+from data.ar_dataset import ARDataModule, SOS_TOKEN, EOS_TOKEN
 from utils.seed import seed_everything
 
 seed_everything(42, benchmark=False)
@@ -30,6 +22,60 @@ with open("wandb_api_key.txt", "r") as f:
     os.environ["WANDB_API_KEY"] = f.read().strip()
 
 
+def weighted_prediction(
+    xi: torch.Tensor,
+    xa: torch.Tensor,
+    img_model: torch.nn.Module,
+    audio_model: torch.nn.Module,
+    alpha: float = 0.5
+):
+    def get_model_embedding(x: torch.Tensor, model: torch.nn.Module): 
+        x = x.to(model.device)
+        # Encoder
+        x = model.encoder(x=x)
+        # Prepare for decoder
+        # 2D PE + flatten + permute
+        x = model.pos_2d(x)
+        x = x.flatten(2).permute(0, 2, 1).contiguous()
+        return x
+
+    # Inference only supports batch_size = 1
+    assert xi.size(0) == 1, "Inference only supports batch_size = 1"
+
+    # Get image and audio embeddings
+    xi = get_model_embedding(xi, img_model)
+    xa = get_model_embedding(xa, audio_model)
+
+    # Autoregressive decoding with weighted prediction
+    yhat = []
+
+    y_in = torch.tensor([img_model.w2i[SOS_TOKEN]]).unsqueeze(0).long().to(xi.device)
+    for _ in range(max(img_model.max_seq_len, audio_model.max_seq_len)):
+        # Get image output vector probability
+        img_y_out_hat = img_model.decoder(tgt=y_in, memory=xi, memory_len=None)
+        img_y_out_hat = img_y_out_hat[0, :, -1]  # Last token
+        img_y_out_hat = img_y_out_hat.softmax(dim=-1)
+
+        # Get audio output vector probability
+        audio_y_out_hat = audio_model.decoder(tgt=y_in, memory=xa, memory_len=None)
+        audio_y_out_hat = audio_y_out_hat[0, :, -1]  # Last token
+        audio_y_out_hat = audio_y_out_hat.softmax(dim=-1)
+
+        # Weighted prediction
+        y_out_hat = alpha * img_y_out_hat + (1 - alpha) * audio_y_out_hat
+        y_out_hat_token = y_out_hat.argmax(dim=-1).item()
+        y_out_hat_word = img_model.i2w[y_out_hat_token] # Both models have the same vocabulary
+        yhat.append(y_out_hat_word)
+        if y_out_hat_word == EOS_TOKEN:
+            break
+
+        y_in = torch.cat(
+            [y_in, torch.tensor([[y_out_hat_token]]).long().to(xi.device)], dim=1
+        )
+
+    return yhat
+
+
 def test(
     ds_name: str,
     krn_encoding: str = "bekern",
@@ -37,9 +83,7 @@ def test(
     img_height: int = None,  # If None, the original image height is used
     image_checkpoint_path: str = "",
     audio_checkpoint_path: str = "",
-    match: int = 2,
-    mismatch: int = -1,
-    gap_penalty: int = -1,
+    alpha: float = 0.5,
 ):
     gc.collect()
     torch.cuda.empty_cache()
@@ -59,7 +103,7 @@ def test(
     _, audio_src_ds_name, _ = audio_checkpoint_path.split("/")
 
     # Experiment info
-    print("SMITH-WATERMAN LATE FUSION TEST EXPERIMENT")
+    print("WEIGHTED MULTIMODAL TOKEN LATE FUSION TEST EXPERIMENT")
     print(f"\tImage source dataset: {img_src_ds_name}")
     print(f"\tAudio source dataset: {audio_src_ds_name}")
     print(f"\tTest dataset: {ds_name}")
@@ -72,7 +116,7 @@ def test(
     # Update wandb config
     wandb_logger = WandbLogger(
         project="OMR-A2S-Poly-Multimodal",
-        group="SMITH-WATERMAN-LATE-FUSION",
+        group="WEIGHTED-MULTIMODAL-TOKEN-LATE-FUSION",
         name=f"{krn_encoding}_ImageTrain-{img_src_ds_name}-AudioTrain-{audio_src_ds_name}_Test-{ds_name}",
         log_model=False,
         entity="grfia",
@@ -81,9 +125,7 @@ def test(
         {
             "img_checkpoint_path": image_checkpoint_path,
             "audio_checkpoint_path": audio_checkpoint_path,
-            "match": match,
-            "mismatch": mismatch,
-            "gap_penalty": gap_penalty,
+            "alpha": alpha,
             "krn_encoding": krn_encoding,
             "use_distorted_images": use_distorted_images,
             "img_height": img_height,
@@ -99,6 +141,9 @@ def test(
     image_model.eval()
     audio_model.eval()
 
+    # Check vocabularies match
+    assert image_model.w2i == audio_model.w2i, "Vocabularies do not match"
+
     # Get test data loader and i2w dictionary
     datamodule = ARDataModule(
         ds_name=ds_name,
@@ -111,52 +156,23 @@ def test(
     ytest_i2w = datamodule.test_ds.i2w
     test_loader = datamodule.test_dataloader()
 
-    ################################################ FIRST PART: OBTAIN INDIVIDUAL PREDICTIONS
+    ################################################ FIRST PART: OBTAIN WEIGHTED PREDICTIONS
     # Iterate over test set
     Y = []
-    IMG_YHAT, IMG_YHAT_PROB = [], []
-    AUDIO_YHAT, AUDIO_YHAT_PROB = [], []
+    YHAT = []
     with torch.no_grad():
-        for batch in track(test_loader, description="Obtaining individual predictions..."):
+        for batch in track(test_loader, description="Obtaining weighted predictions..."):
             xi, xa, y = batch
 
-            # Get image model prediction
-            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(xi.to(image_model.device))
-            IMG_YHAT.append(img_yhat)
-            IMG_YHAT_PROB.append(img_yhat_prob)
-
-            # Get audio model prediction
-            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(xa.to(audio_model.device))
-            AUDIO_YHAT.append(audio_yhat)
-            AUDIO_YHAT_PROB.append(audio_yhat_prob)
+            # Get weighted prediction
+            yhat = weighted_prediction(xi, xa, image_model, audio_model, alpha)
+            YHAT.append(yhat)
 
             # Decode ground-truth
             y = [ytest_i2w[i.item()] for i in y[0][1:]]  # Remove SOS_TOKEN
             Y.append(y)
 
-    ################################################ SECOND PART: PERFORM SMITH-WATERMAN FUSION
-    # Obtain the callable object of swalign library that contains the align() method that performs the alignment
-    scoring = swalign.NucleotideScoringMatrix(match, mismatch)
-    # Gap penalty designates scores for insertion or deletion
-    sw = swalign.LocalAlignment(scoring, gap_penalty=gap_penalty)
-    # Perform the multimodal combination at prediction level
-    YHAT = []
-    for r, r_prob, q, q_prob in track(zip(
-        IMG_YHAT, IMG_YHAT_PROB, AUDIO_YHAT, AUDIO_YHAT_PROB
-    ), description="Performing Smith-Waterman fusion..."):
-        # Prepare for swalign computation
-        r, q, swa2w = swalign_preprocess(r, q)
-        # Smith-Waterman local alignment -> ref, query
-        alignment = sw.align(r, q)
-        q, m, r = dump(alignment)
-        # Fusion policy
-        q_prob = preprocess_prob(q, q_prob)
-        r_prob = preprocess_prob(r, r_prob)
-        alignment = get_alignment(q, m, r, q_prob, r_prob)
-        # Undo the swalign preprocess and append to accumulator variable
-        YHAT.append(undo_swalign_preprocess(alignment, swa2w))
-
-    ################################################ THIRD PART: COMPUTE METRICS
+    ################################################ SECOND PART: COMPUTE METRICS
     print("Computing metrics...")
     metrics = compute_metrics(y_true=Y, y_pred=YHAT)
 

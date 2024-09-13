@@ -7,7 +7,7 @@
 # so we only need to run one of them -> kern
 
 for input_modality in image audio; do
-    for train_ds in grandstaff beethoven chopin hummel joplin mozart scarlatti-d; do
+    for train_ds in joplin mozart beethoven chopin scarlatti-d grandstaff; do
         python -u train.py --ds_name $train_ds --krn_encoding kern --input_modality $input_modality --attn_window 100 --epochs 300 --patience 5 --batch_size 1  --use_distorted_images
         for test_ds in grandstaff beethoven chopin hummel joplin mozart scarlatti-d; do
             if [ $train_ds != $test_ds ]; then
@@ -15,9 +15,76 @@ for input_modality in image audio; do
                     checkpoint_path=weights/$train_ds/image_distorted_kern.ckpt
                 else
                     checkpoint_path=weights/$train_ds/audio_kern.ckpt
+                fi
                 python -u test.py --ds_name $test_ds --krn_encoding kern --input_modality $input_modality --checkpoint_path $checkpoint_path  --use_distorted_images
             fi
         done
     done
 done
- 
+
+
+
+############################## LATE-FUSION SMITH-WATERMAN EXPERIMENTS:
+# We can perform cross-authors experiments
+
+
+match=(2 10 20 5)
+mismatch=( -1 5 10 2 )
+gap_penalty=( -1 -2 -4 -1 )
+
+for i in "${!match[@]}"; do
+    m="${match[$i]}"
+    mm="${mismatch[$i]}"
+    g="${gap_penalty[$i]}"
+    
+    for test_ds in hummel joplin mozart beethoven chopin scarlatti-d grandstaff; do
+        for image_ds in joplin mozart beethoven chopin scarlatti-d; do
+            for audio_ds in joplin mozart beethoven chopin scarlatti-d; do
+                image_checkpoint_path=weights/$image_ds/image_distorted_kern.ckpt
+                audio_checkpoint_path=weights/$audio_ds/audio_kern.ckpt
+
+                python multimodal/smith_waterman/test.py \
+                    --match "$m" \
+                    --mismatch "$mm" \
+                    --gap_penalty "$g" \
+                    --ds_name "$test_ds" \
+                    --krn_encoding kern \
+                    --image_checkpoint_path "$image_checkpoint_path" \
+                    --audio_checkpoint_path "$audio_checkpoint_path" \
+                    --use_distorted_images
+
+            done
+        done
+    done
+done
+
+
+############################## LATE-FUSION WEIGHTED AVERAGE EXPERIMENTS:
+# We CANNOT perform cross-authors experiments due to different number of classes
+
+alpha=(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)
+
+for i in "${!alpha[@]}"; do
+    a="${alpha[$i]}"
+    
+    for test_ds in hummel joplin mozart beethoven chopin scarlatti-d grandstaff; do
+        for image_ds in joplin mozart beethoven chopin scarlatti-d; do
+            for audio_ds in joplin mozart beethoven chopin scarlatti-d; do
+                if [ $image_ds == $audio_ds ]; then
+
+                    image_checkpoint_path=weights/$image_ds/image_distorted_kern.ckpt
+                    audio_checkpoint_path=weights/$audio_ds/audio_kern.ckpt
+
+                    python multimodal/weighted_multimodal/test.py \
+                        --alpha "$a" \
+                        --ds_name "$test_ds" \
+                        --krn_encoding kern \
+                        --image_checkpoint_path "$image_checkpoint_path" \
+                        --audio_checkpoint_path "$audio_checkpoint_path" \
+                        --use_distorted_images
+                        
+                fi
+            done
+        done
+    done
+done

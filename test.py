@@ -12,23 +12,26 @@ from utils.seed import seed_everything
 
 seed_everything(42, benchmark=False)
 
+# Set WANDB_API_KEY
+with open("wandb_api_key.txt", "r") as f:
+    os.environ["WANDB_API_KEY"] = f.read().strip()
+
 
 def test(
     ds_name,
     krn_encoding: str = "bekern",
-    input_modality: str = "audio",  # "audio" or "image" or "both"
-    use_distorted_images: bool = False,  # Only used if input_modality == "image" or "both"
-    img_height: int = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
+    input_modality: str = "audio",  # "audio" or "image"
+    use_distorted_images: bool = False,  # Only used if input_modality == "image"
+    img_height: int = None,  # If None, the original image height is used (only used if input_modality == "image")
     checkpoint_path: str = "",
 ):
     gc.collect()
     torch.cuda.empty_cache()
 
-    # TODO
-    # Implement multimodal testing
-    if input_modality == "both":
+    # Check input modality
+    if input_modality not in ["audio", "image"]:
         raise NotImplementedError(
-            "We can only perform unimodal model testing right now."
+            f"Input modality {input_modality} not implemented. Choose between 'audio' or 'image'"
         )
 
     # Check if checkpoint path is empty or does not exist
@@ -46,10 +49,8 @@ def test(
     print(f"\tTest dataset: {ds_name}")
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
-    print(
-        f"\tUse distorted images: {use_distorted_images} (used if input_modality in ['image', 'both'])"
-    )
-    print(f"\tImage height: {img_height} (used if input_modality in ['image', 'both'])")
+    print(f"\tUse distorted images: {use_distorted_images} (used if input_modality is 'image')")
+    print(f"\tImage height: {img_height} (used if input_modality is 'image')")
     print(f"\tCheckpoint path: {checkpoint_path}")
 
     # Data module
@@ -73,6 +74,7 @@ def test(
             group=model_name.split(".ckpt")[0],
             name=f"Train-{src_ds_name}_Test-{ds_name}",
             log_model=False,
+            entity="grfia",
         ),
         precision="16-mixed",  # Mixed precision training
     )

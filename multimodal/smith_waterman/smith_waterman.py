@@ -12,9 +12,13 @@ SWALIGN_VOCAB = sorted(set(SWALIGN_VOCAB))
 def swalign_preprocess(r: List[str], q: List[str]) -> Tuple[str, str, Dict[str, str]]:
     """
     Converts a string sequence to a compatible swalign string.
-    :param r: Reference string sequence
-    :param q: Query string sequence
-    :return: Tuple of (reference, query, swa2w), where swa2w is a dictionary that maps swalign tokens to original tokens
+
+    Args:
+        r (List[str]): Reference string sequence.
+        q (List[str]): Query string sequence.
+
+    Returns:
+        Tuple[str, str, Dict[str, str]]: Tuple of (reference, query, swa2w), where swa2w is a dictionary that maps swalign tokens to original tokens.
     """
     current_vocab = sorted(set(r + q))
     assert len(current_vocab) < len(SWALIGN_VOCAB), f"Too many tokens for swalign! (len_current_vocab: {len(current_vocab)}, len_swalign_vocab: {len(SWALIGN_VOCAB)})"
@@ -31,8 +35,12 @@ def dump(alignment: swalign.Alignment) -> Tuple[str, str, str]:
     We have modified it to obtain (in the following order) the query, the matches, and the reference sequences; all of them have the same length.
     Matches is a string that contains either "|" if sequences match on a token, or "." if they disagree,
     or " " if one of them misses a token (in this case the token "-" is included at such position in the corresponding sequence).
-    :param alignment: Alignment object from swalign
-    :return: Tuple of (query, matches, reference)
+    
+    Args:
+        alignment (swalign.Alignment): Alignment object from swalign.
+
+    Returns:
+        Tuple[str, str, str]: Tuple of (query, matches, reference).
     """
     i = alignment.r_pos
     j = alignment.q_pos
@@ -88,9 +96,13 @@ def dump(alignment: swalign.Alignment) -> Tuple[str, str, str]:
 def preprocess_prob(s: str, prob: List[float]) -> List[float]:
     """
     Adapts the probability sequence after the swalign computation to be able to obtain the final alignment.
-    :param s: String
-    :param prob: Probability sequence
-    :return: New probability sequence
+
+    Args:
+        s (str): String.
+        prob (List[float]): Probability sequence.
+    
+    Returns:
+        List[float]: New probability sequence.
     """
     new_prob = prob.copy()
     count = 0
@@ -116,12 +128,16 @@ def get_alignment(
     1) Both strings match on a token -> included
     2) strings disagree on a token -> include that of the highest probability
     3) A string misses a token -> include that of the other
-    :param q: Query string
-    :param m: Matches string
-    :param r: Reference string
-    :param q_prob: Query probability sequence
-    :param r_prob: Reference probability sequence
-    :return: Final alignment string
+
+    Args:
+        q (str): Query string.
+        m (str): Matches string.
+        r (str): Reference string.
+        q_prob (List[float]): Query probability sequence.
+        r_prob (List[float]): Reference probability sequence.
+    
+    Returns:
+        str: Final alignment string.
     """
     alignment = ""
     for qv, mv, rv, qv_prob, rv_prob in zip(q, m, r, q_prob, r_prob):
@@ -149,8 +165,12 @@ def get_alignment(
 def undo_swalign_preprocess(alignment: str, swa2w: Dict[str, str]) -> List[str]:
     """
     Converts a swalign alignment string to the original token vocabulary.
-    :param alignment: Alignment string
-    :param swa2w: Dictionary that maps swalign tokens to original tokens
-    :return: Alignment as a string sequence that uses the original token vocabulary
+
+    Args:
+        alignment (str): Alignment string.
+        swa2w (Dict[str, str]): Dictionary that maps swalign tokens to original tokens.
+    
+    Returns:
+        List[str]: Alignment as a string sequence that uses the original token vocabulary.
     """
     return [swa2w[i] for i in alignment if i not in ["¡", "!"]]
