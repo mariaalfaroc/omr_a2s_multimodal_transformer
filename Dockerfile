@@ -4,6 +4,7 @@ RUN apt update --fix-missing
 RUN apt install build-essential -y
 RUN apt install ffmpeg libsm6 -y
 RUN apt install vim -y
+RUN apt update --fix-missing
 RUN apt install fluidsynth -y
 RUN apt install git -y
 RUN apt clean

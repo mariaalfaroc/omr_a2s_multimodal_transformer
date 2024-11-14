@@ -1,5 +1,0 @@
-main.data_path = "data/grandstaff/scarlatti-d"
-main.corpus_name = "GS_Scarlatti-d"
-main.model_name = "DAN_audio"
-main.metric_to_watch = "val_sym-er"
-main.keep_vocabulary = True

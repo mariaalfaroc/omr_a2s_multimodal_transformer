@@ -1,5 +1,0 @@
-main.data_path = "data/grandstaff/chopin"
-main.corpus_name = "GS_Chopin"
-main.model_name = "DAN_image"
-main.metric_to_watch = "val_sym-er"
-main.keep_vocabulary = True
