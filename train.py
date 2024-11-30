@@ -9,6 +9,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 
 from data.ar_dataset import ARDataModule
+from data.preprocessing import MEMORY
 from transformer.model import MultimodalTransformer, Transformer
 from utils.seed import seed_everything
 
@@ -161,6 +162,9 @@ def train(
     model = model_class.load_from_checkpoint(callbacks[0].best_model_path)
     model.freeze()
     trainer.test(model, datamodule=datamodule)
+
+    # Free cache memory
+    MEMORY.clear()
 
 
 if __name__ == "__main__":
