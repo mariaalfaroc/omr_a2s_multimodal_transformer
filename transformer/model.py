@@ -386,7 +386,7 @@ class MultimodalTransformer(LightningModule):
         w2i (Dict[str, int]): Word to index dictionary.
         i2w (Dict[int, str]): Index to word dictionary.
         ytest_i2w (Optional[Dict[int, str]], optional): Index to word dictionary for test set. Defaults to None.
-        mixer_type (str, optional): Modality mixer type. Defaults to "concat".
+        mixer_type (str, optional): Modality mixer type. Defaults to "concat". Can be "concat", "attn_img", "attn_audio", or "attn_both".
         attn_window (int, optional): Attention window size (number of past tokens to attend to). Defaults to -1.
         teacher_forcing_prob (float, optional): Probability of applying teacher forcing. Defaults to 0.5.
         teacher_forcing_modality_prob (float, optional): Probability of using both modalities or only one. Defaults to 0.5.
