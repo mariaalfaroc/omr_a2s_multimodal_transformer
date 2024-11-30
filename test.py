@@ -1,13 +1,14 @@
 import gc
 import os
+from typing import Optional
 
 import fire
 import torch
 from lightning.pytorch import Trainer
 from lightning.pytorch.loggers.wandb import WandbLogger
 
-from transformer.model import Transformer
 from data.ar_dataset import ARDataModule
+from transformer.model import MultimodalTransformer, Transformer
 from utils.seed import seed_everything
 
 seed_everything(42, benchmark=False)
@@ -19,20 +20,16 @@ with open("wandb_api_key.txt", "r") as f:
 
 def test(
     ds_name,
+    checkpoint_path: str,
     krn_encoding: str = "bekern",
-    input_modality: str = "audio",  # "audio" or "image"
+    input_modality: str = "audio",  # "audio" or "image" or "both"
     use_distorted_images: bool = False,  # Only used if input_modality == "image"
-    img_height: int = None,  # If None, the original image height is used (only used if input_modality == "image")
-    checkpoint_path: str = "",
+    img_height: Optional[
+        int
+    ] = None,  # If None, the original image height is used (only used if input_modality == "image")
 ):
     gc.collect()
     torch.cuda.empty_cache()
-
-    # Check input modality
-    if input_modality not in ["audio", "image"]:
-        raise NotImplementedError(
-            f"Input modality {input_modality} not implemented. Choose between 'audio' or 'image'"
-        )
 
     # Check if checkpoint path is empty or does not exist
     if checkpoint_path == "":
@@ -49,7 +46,9 @@ def test(
     print(f"\tTest dataset: {ds_name}")
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
-    print(f"\tUse distorted images: {use_distorted_images} (used if input_modality is 'image')")
+    print(
+        f"\tUse distorted images: {use_distorted_images} (used if input_modality is 'image')"
+    )
     print(f"\tImage height: {img_height} (used if input_modality is 'image')")
     print(f"\tCheckpoint path: {checkpoint_path}")
 
@@ -65,7 +64,8 @@ def test(
     ytest_i2w = datamodule.test_ds.i2w
 
     # Model
-    model = Transformer.load_from_checkpoint(checkpoint_path, ytest_i2w=ytest_i2w)
+    model_class = MultimodalTransformer if input_modality == "both" else Transformer
+    model = model_class.load_from_checkpoint(checkpoint_path, ytest_i2w=ytest_i2w)
 
     # Test
     trainer = Trainer(

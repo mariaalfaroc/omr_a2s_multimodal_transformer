@@ -1,26 +1,28 @@
 import sys
+
 sys.path.append("./")
 
 import gc
 import os
 import random
+from typing import Optional
 
 import fire
-import torch
 import swalign
-from rich.progress import track
+import torch
 from lightning.pytorch.loggers.wandb import WandbLogger
+from rich.progress import track
 
-from utils.metrics import compute_metrics
-from transformer.model import Transformer
 from data.ar_dataset import ARDataModule
 from multimodal.smith_waterman.smith_waterman import (
+    dump,
+    get_alignment,
+    preprocess_prob,
     swalign_preprocess,
     undo_swalign_preprocess,
-    dump,
-    preprocess_prob,
-    get_alignment,
 )
+from transformer.model import Transformer
+from utils.metrics import compute_metrics
 from utils.seed import seed_everything
 
 seed_everything(42, benchmark=False)
@@ -32,11 +34,11 @@ with open("wandb_api_key.txt", "r") as f:
 
 def test(
     ds_name: str,
+    image_checkpoint_path: str,
+    audio_checkpoint_path: str,
     krn_encoding: str = "bekern",
     use_distorted_images: bool = False,
-    img_height: int = None,  # If None, the original image height is used
-    image_checkpoint_path: str = "",
-    audio_checkpoint_path: str = "",
+    img_height: Optional[int] = None,  # If None, the original image height is used
     match: int = 2,
     mismatch: int = -1,
     gap_penalty: int = -1,
@@ -92,8 +94,12 @@ def test(
 
     # Freeze models and put them in eval mode
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    image_model = Transformer.load_from_checkpoint(image_checkpoint_path, map_location=device).to(device)
-    audio_model = Transformer.load_from_checkpoint(audio_checkpoint_path, map_location=device).to(device)
+    image_model = Transformer.load_from_checkpoint(
+        image_checkpoint_path, map_location=device
+    ).to(device)
+    audio_model = Transformer.load_from_checkpoint(
+        audio_checkpoint_path, map_location=device
+    ).to(device)
     image_model.freeze()
     audio_model.freeze()
     image_model.eval()
@@ -117,16 +123,22 @@ def test(
     IMG_YHAT, IMG_YHAT_PROB = [], []
     AUDIO_YHAT, AUDIO_YHAT_PROB = [], []
     with torch.no_grad():
-        for batch in track(test_loader, description="Obtaining individual predictions..."):
+        for batch in track(
+            test_loader, description="Obtaining individual predictions..."
+        ):
             xi, xa, y = batch
 
             # Get image model prediction
-            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(xi.to(image_model.device))
+            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(
+                xi.to(image_model.device)
+            )
             IMG_YHAT.append(img_yhat)
             IMG_YHAT_PROB.append(img_yhat_prob)
 
             # Get audio model prediction
-            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(xa.to(audio_model.device))
+            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(
+                xa.to(audio_model.device)
+            )
             AUDIO_YHAT.append(audio_yhat)
             AUDIO_YHAT_PROB.append(audio_yhat_prob)
 
@@ -141,9 +153,10 @@ def test(
     sw = swalign.LocalAlignment(scoring, gap_penalty=gap_penalty)
     # Perform the multimodal combination at prediction level
     YHAT = []
-    for r, r_prob, q, q_prob in track(zip(
-        IMG_YHAT, IMG_YHAT_PROB, AUDIO_YHAT, AUDIO_YHAT_PROB
-    ), description="Performing Smith-Waterman fusion..."):
+    for r, r_prob, q, q_prob in track(
+        zip(IMG_YHAT, IMG_YHAT_PROB, AUDIO_YHAT, AUDIO_YHAT_PROB),
+        description="Performing Smith-Waterman fusion...",
+    ):
         # Prepare for swalign computation
         r, q, swa2w = swalign_preprocess(r, q)
         # Smith-Waterman local alignment -> ref, query

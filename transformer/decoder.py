@@ -1,9 +1,20 @@
+from typing import Optional, Tuple
+
 import torch
 import torch.nn as nn
 
 
 class PositionalEncoding1D(nn.Module):
-    def __init__(self, max_len, emb_dim, dropout_p: float = 0.1):
+    """
+    1D positional encoding for transformer decoders.
+
+    Args:
+        max_len (int): The maximum sequence length.
+        emb_dim (int): The embedding dimension.
+        dropout_p (float, optional): The dropout probability. Defaults to 0.1.
+    """
+
+    def __init__(self, max_len: int, emb_dim: int, dropout_p: float = 0.1):
         super(PositionalEncoding1D, self).__init__()
         self.dropout = nn.Dropout(p=dropout_p)
 
@@ -15,13 +26,30 @@ class PositionalEncoding1D(nn.Module):
         pe[0, :, 1::2] = torch.cos(pos / den)
         self.register_buffer("pe", pe)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x.shape = [batch_size, sec_len, emb_dim]
         x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
 class Decoder(nn.Module):
+    """
+    Transformer decoder with 1D positional encoding.
+    The final classification layer is a 1D convolution.
+
+    Args:
+        output_size (int): The number of classes to predict.
+        max_seq_len (int): The maximum sequence length.
+        num_embeddings (int): The number of embeddings in the vocabulary.
+        embedding_dim (int, optional): The embedding dimension. Defaults to 256.
+        padding_idx (int, optional): The padding index. Defaults to 0.
+        ff_dim (int, optional): The feedforward dimension. Defaults to 256.
+        dropout_p (float, optional): The dropout probability. Defaults to 0.1.
+        nhead (int, optional): The number of attention heads. Defaults to 4.
+        num_transformer_layers (int, optional): The number of transformer layers. Defaults to 8.
+        attn_window (int, optional): The attention window size. Defaults to -1 (attends to all past tokens).
+    """
+
     def __init__(
         self,
         # Classification layer
@@ -73,7 +101,20 @@ class Decoder(nn.Module):
             kernel_size=1,
         )
 
-    def forward(self, tgt, memory, memory_len):
+    def forward(
+        self, tgt: torch.Tensor, memory: torch.Tensor, memory_len: torch.Tensor
+    ):
+        """
+        Forward pass of the transformer decoder.
+
+        Args:
+            tgt (torch.Tensor): The target sequence. Shape: [batch_size, tgt_sec_len].
+            memory (torch.Tensor): The encoder output with positional encoding. Shape: [batch_size, src_sec_len, emb_dim].
+            memory_len (torch.Tensor): The actual length of each encoder output. Shape: [batch_size].
+
+        Returns:
+            torch.Tensor: The predicted target sequence. Shape: [batch_size, output_size, tgt_sec_len].
+        """
         # memory is the output of the encoder with the 2D PE added, flattened and permuted
         # memory.shape = [batch_size, src_sec_len, emb_dim]
         # src_sec_len = h * w (IMAGE/SPECTROGRAM UNFOLDING); emb_dim = out channels from encoder
@@ -114,7 +155,20 @@ class Decoder(nn.Module):
 
         return tgt_pred
 
-    def get_memory_key_padding_mask(self, memory, memory_len):
+    def get_memory_key_padding_mask(
+        self, memory: torch.Tensor, memory_len: Optional[torch.Tensor] = None
+    ) -> Optional[torch.Tensor]:
+        """
+        Generates the memory key padding mask needed for the transformer decoder forward pass.
+        The mask is used to ignore padding in the encoder output.
+
+        Args:
+            memory (torch.Tensor): The encoder output. Shape: [batch_size, src_sec_len, emb_dim].
+            memory_len (Optional[torch.Tensor], optional): The actual length of each encoder output. Shape: [batch_size]. Defaults to None.
+
+        Returns:
+            Optional[torch.Tensor]: The generated memory key padding mask.
+        """
         if memory_len is None:
             # During inference, the encoder output is not padded
             # We perform inference one sample at a time
@@ -136,17 +190,22 @@ class Decoder(nn.Module):
 
     @staticmethod
     def create_variable_window_mask(
-        size, window_size, dtype=torch.float32, device=torch.device("cpu")
-    ):
+        size: int,
+        window_size: int,
+        dtype: torch.dtype = torch.float32,
+        device: torch.device = torch.device("cpu"),
+    ) -> torch.Tensor:
         """
         Creates a mask for the target sequence with a variable window size.
 
         Args:
-        size (int): The size of the target sequence.
-        window_size (int): The size of the window to focus on the last X tokens.
+            size (int): The size of the target sequence.
+            window_size (int): The size of the window to focus on the last X tokens.
+            dtype (torch.dtype, optional): The data type of the mask. Defaults to torch.float32.
+            device (torch.device, optional): The device to store the mask. Defaults to torch.device("cpu").
 
         Returns:
-        torch.Tensor: The generated mask.
+            torch.Tensor: The generated mask.
         """
         mask = torch.full((size, size), float("-inf"), dtype=dtype, device=device)
         for i in range(size):
@@ -157,7 +216,21 @@ class Decoder(nn.Module):
                 mask[i, : i + 1] = 0
         return mask
 
-    def get_tgt_masks(self, tgt):
+    def get_tgt_masks(self, tgt: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Generates the target mask and the target padding mask needed for the transformer decoder forward pass.
+            - Target mask is an upper triangular matrix with the masked positions filled with float('-inf'). We only let the decoder see the past.
+            Since it is a FloatTensor, it will be added to the attention weights
+
+            - Target padding mask is a binary mask with value 1 (True) in the positions where the target sequence is padded.
+            We want the attention mechanism to ignore these positions.
+
+        Args:
+            tgt (torch.Tensor): The target sequence.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: The target mask and the target padding mask.
+        """
         # tgt.shape = [batch_size, tgt_sec_len]
         tgt_sec_len = tgt.shape[1]
 

@@ -1,5 +1,6 @@
-import os
 import gc
+import os
+from typing import Optional
 
 import fire
 import torch
@@ -7,8 +8,8 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 
-from transformer.model import Transformer
 from data.ar_dataset import ARDataModule
+from transformer.model import MultimodalTransformer, Transformer
 from utils.seed import seed_everything
 
 seed_everything(42, deterministic=False, benchmark=False)
@@ -23,19 +24,17 @@ def train(
     krn_encoding: str = "bekern",
     input_modality: str = "audio",  # "audio" or "image" or "both"
     use_distorted_images: bool = False,  # Only used if input_modality == "image" or "both"
-    img_height: int = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
-    attn_window: int = -1,
+    img_height: Optional[
+        int
+    ] = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
+    attn_window: int = -1,  # Number of past tokens to attends to; -1 == no limitation (attends to all past tokens)
     epochs: int = 1000,
     patience: int = 20,
     batch_size: int = 16,
+    checkpoint_path: str = "",  # If not empty, the model will be loaded from this checkpoint
 ):
     gc.collect()
     torch.cuda.empty_cache()
-
-    # TODO
-    # Implement multimodal training
-    if input_modality == "both":
-        raise NotImplementedError("We can only train a unimodal model right now.")
 
     # Experiment info
     print("TRAIN EXPERIMENT")
@@ -50,6 +49,7 @@ def train(
     print(f"\tEpochs: {epochs}")
     print(f"\tPatience: {patience}")
     print(f"\tBatch size: {batch_size}")
+    print(f"\tCheckpoint path (to resume training): {checkpoint_path}")
 
     # Data module
     datamodule = ARDataModule(
@@ -62,19 +62,49 @@ def train(
     )
     datamodule.setup(stage="fit")
     w2i, i2w = datamodule.get_w2i_and_i2w()
-    max_h, max_w = datamodule.get_max_input_size()
 
     # Model
-    model = Transformer(
-        max_input_height=max_h,
-        max_input_width=max_w,
-        max_seq_len=datamodule.get_max_seq_len(),
-        w2i=w2i,
-        i2w=i2w,
-        attn_window=attn_window,
-        teacher_forcing_prob=0.2,
-    )
+    model_class = MultimodalTransformer if input_modality == "both" else Transformer
+    if os.path.exists(checkpoint_path):
+        try:
+            print("Checkpoint found. Loading model from checkpoint...")
+            model = model_class.load_from_checkpoint(checkpoint_path)
+        except Exception as e:
+            print(f"Error loading checkpoint: {e}. Training will start from scratch.")
+            checkpoint_path = ""
+    else:
+        print("No checkpoint found. Training will start from scratch.")
 
+    if not checkpoint_path:
+        if input_modality == "both":
+            max_h_img, max_w_img, max_h_audio, max_w_audio = (
+                datamodule.get_max_input_size()
+            )
+            model = model_class(
+                max_img_height=max_h_img,
+                max_img_width=max_w_img,
+                max_audio_height=max_h_audio,
+                max_audio_width=max_w_audio,
+                max_seq_len=datamodule.get_max_seq_len(),
+                w2i=w2i,
+                i2w=i2w,
+                attn_window=attn_window,
+                teacher_forcing_prob=0.2,
+                teacher_forcing_modality_prob=0.2,
+            )
+        else:
+            max_h, max_w = datamodule.get_max_input_size()
+            model = model_class(
+                max_input_height=max_h,
+                max_input_width=max_w,
+                max_seq_len=datamodule.get_max_seq_len(),
+                w2i=w2i,
+                i2w=i2w,
+                attn_window=attn_window,
+                teacher_forcing_prob=0.2,
+            )
+
+    # Model name
     model_name = input_modality
     model_name += (
         "_distorted" if input_modality == "image" and use_distorted_images else ""
@@ -128,7 +158,7 @@ def train(
         precision="16-mixed",  # Mixed precision training
     )
     trainer.fit(model, datamodule=datamodule)
-    model = Transformer.load_from_checkpoint(callbacks[0].best_model_path)
+    model = model_class.load_from_checkpoint(callbacks[0].best_model_path)
     model.freeze()
     trainer.test(model, datamodule=datamodule)
 

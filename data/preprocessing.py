@@ -1,10 +1,11 @@
-import joblib
+from typing import Optional, Tuple
 
-import torch
+import joblib
 import librosa
 import numpy as np
-from PIL import Image
+import torch
 import torch.nn.functional as F
+from PIL import Image
 from torchvision import transforms
 
 MEMORY = joblib.memory.Memory("./joblib_cache", mmap_mode="r", verbose=0)
@@ -38,7 +39,7 @@ def preprocess_audio(path: str) -> torch.Tensor:
 
 
 @MEMORY.cache
-def preprocess_image(path: str, img_height: int = None) -> torch.Tensor:
+def preprocess_image(path: str, img_height: Optional[int] = None) -> torch.Tensor:
     x = Image.open(path).convert("L")  # Convert to grayscale
     if img_height is not None:
         new_width = int(
@@ -49,7 +50,7 @@ def preprocess_image(path: str, img_height: int = None) -> torch.Tensor:
     return x
 
 
-def pad_batch_inputs(x, pad_value: float = 0.0):
+def pad_batch_inputs(x: torch.Tensor, pad_value: float = 0.0) -> torch.Tensor:
     max_width = max(x, key=lambda sample: sample.shape[2]).shape[2]
     max_height = max(x, key=lambda sample: sample.shape[1]).shape[1]
     x = torch.stack(
@@ -71,14 +72,25 @@ def pad_batch_inputs(x, pad_value: float = 0.0):
     return x
 
 
-def pad_batch_transcripts(x, dtype=torch.int32):
+def pad_batch_transcripts(
+    x: torch.Tensor, dtype: torch.dtype = torch.int32
+) -> torch.Tensor:
     max_length = max(x, key=lambda sample: sample.shape[0]).shape[0]
     x = torch.stack([F.pad(i, pad=(0, max_length - i.shape[0])) for i in x], dim=0)
     x = x.type(dtype=dtype)
     return x
 
 
-def ar_batch_preparation_unimodal(batch, pad_value: float = 0.0):
+def ar_batch_preparation_unimodal(
+    batch, pad_value: float = 0.0
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Returns a batch consisting of:
+        - x (torch.Tensor): padded images. Shape: [batch_size, NUM_CHANNELS, max_height, max_width].
+        - xl (torch.Tensor): original lengths (widths) of images. Shape: [batch_size].
+        - yin (torch.Tensor): padded transcripts (decoder input) without EOS_TOKEN. Shape: [batch_size, max_length].
+        - yout (torch.Tensor): padded transcripts (decoder target) without SOS_TOKEN. Shape: [batch_size, max_length].
+    """
     x, xl, y = zip(*batch)
     # Zero-pad inputs (images or audios) to maximum batch inputs shape
     x = pad_batch_inputs(x, pad_value=pad_value)
@@ -92,17 +104,34 @@ def ar_batch_preparation_unimodal(batch, pad_value: float = 0.0):
     return x, xl, y_in, y_out
 
 
-def ar_batch_preparation_image(batch):
+def ar_batch_preparation_image(
+    batch,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     # Background for scores is white
     return ar_batch_preparation_unimodal(batch, pad_value=1.0)
 
 
-def ar_batch_preparation_audio(batch):
+def ar_batch_preparation_audio(
+    batch,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     # Background for spectrograms is black
     return ar_batch_preparation_unimodal(batch)
 
 
-def ar_batch_preparation_multimodal(batch):
+def ar_batch_preparation_multimodal(
+    batch,
+) -> Tuple[
+    torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
+]:
+    """
+    Returns a batch consisting of:
+        - xi (torch.Tensor): padded images. Shape: [batch_size, NUM_CHANNELS, max_height, max_width].
+        - xli (torch.Tensor): original lengths (widths) of images. Shape: [batch_size].
+        - xa (torch.Tensor): padded audios. Shape: [batch_size, NUM_CHANNELS, NUM_FREQ_BINS, time_frames].
+        - xla (torch.Tensor): original lengths (time_frames) of audios. Shape: [batch_size].
+        - yin (torch.Tensor): padded transcripts (decoder input) without EOS_TOKEN. Shape: [batch_size, max_length].
+        - yout (torch.Tensor): padded transcripts (decoder target) without SOS_TOKEN. Shape: [batch_size, max_length].
+    """
     xi, xli, xa, xla, y = zip(*batch)
     # Zero-pad inputs (images and audios) to maximum batch inputs shape
     xi = pad_batch_inputs(xi, pad_value=1.0)

@@ -1,18 +1,20 @@
 import sys
+
 sys.path.append("./")
 
 import gc
 import os
 import random
+from typing import Optional
 
 import fire
 import torch
-from rich.progress import track
 from lightning.pytorch.loggers.wandb import WandbLogger
+from rich.progress import track
 
-from utils.metrics import compute_metrics
+from data.ar_dataset import EOS_TOKEN, SOS_TOKEN, ARDataModule
 from transformer.model import Transformer
-from data.ar_dataset import ARDataModule, SOS_TOKEN, EOS_TOKEN
+from utils.metrics import compute_metrics
 from utils.seed import seed_everything
 
 seed_everything(42, benchmark=False)
@@ -27,9 +29,9 @@ def weighted_prediction(
     xa: torch.Tensor,
     img_model: torch.nn.Module,
     audio_model: torch.nn.Module,
-    alpha: float = 0.5
+    alpha: float = 0.5,
 ):
-    def get_model_embedding(x: torch.Tensor, model: torch.nn.Module): 
+    def get_model_embedding(x: torch.Tensor, model: torch.nn.Module):
         x = x.to(model.device)
         # Encoder
         x = model.encoder(x=x)
@@ -64,7 +66,9 @@ def weighted_prediction(
         # Weighted prediction
         y_out_hat = alpha * img_y_out_hat + (1 - alpha) * audio_y_out_hat
         y_out_hat_token = y_out_hat.argmax(dim=-1).item()
-        y_out_hat_word = img_model.i2w[y_out_hat_token] # Both models have the same vocabulary
+        y_out_hat_word = img_model.i2w[
+            y_out_hat_token
+        ]  # Both models have the same vocabulary
         yhat.append(y_out_hat_word)
         if y_out_hat_word == EOS_TOKEN:
             break
@@ -78,11 +82,11 @@ def weighted_prediction(
 
 def test(
     ds_name: str,
+    image_checkpoint_path: str,
+    audio_checkpoint_path: str,
     krn_encoding: str = "bekern",
     use_distorted_images: bool = False,
-    img_height: int = None,  # If None, the original image height is used
-    image_checkpoint_path: str = "",
-    audio_checkpoint_path: str = "",
+    img_height: Optional[int] = None,  # If None, the original image height is used
     alpha: float = 0.5,
 ):
     gc.collect()
@@ -134,8 +138,12 @@ def test(
 
     # Freeze models and put them in eval mode
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    image_model = Transformer.load_from_checkpoint(image_checkpoint_path, map_location=device).to(device)
-    audio_model = Transformer.load_from_checkpoint(audio_checkpoint_path, map_location=device).to(device)
+    image_model = Transformer.load_from_checkpoint(
+        image_checkpoint_path, map_location=device
+    ).to(device)
+    audio_model = Transformer.load_from_checkpoint(
+        audio_checkpoint_path, map_location=device
+    ).to(device)
     image_model.freeze()
     audio_model.freeze()
     image_model.eval()
@@ -161,7 +169,9 @@ def test(
     Y = []
     YHAT = []
     with torch.no_grad():
-        for batch in track(test_loader, description="Obtaining weighted predictions..."):
+        for batch in track(
+            test_loader, description="Obtaining weighted predictions..."
+        ):
             xi, xa, y = batch
 
             # Get weighted prediction

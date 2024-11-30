@@ -1,23 +1,42 @@
 import os
 import shutil
-from typing import List, Dict
-
+from typing import Dict, List
 
 import numpy as np
-from pyMV2H.utils.mv2h import MV2H
-from pyMV2H.utils.music import Music
-from pyMV2H.metrics.mv2h import mv2h
 from music21 import converter as converterm21
 from pyMV2H.converter.midi_converter import MidiConverter as Converter
+from pyMV2H.metrics.mv2h import mv2h
+from pyMV2H.utils.music import Music
+from pyMV2H.utils.mv2h import MV2H
 
-from data.encoding import CON_TOKEN, COC_TOKEN, COR_TOKEN
+from data.encoding import COC_TOKEN, CON_TOKEN, COR_TOKEN
 
 
 def compute_metrics(
     y_true: List[List[str]],
     y_pred: List[List[str]],
-    compute_mv2h=False,
+    compute_mv2h: bool = False,
 ) -> Dict[str, float]:
+    """
+    Compute metrics for the given ground-truth and predicted sequences.
+
+    Args:
+        y_true (List[List[str]]): Ground-truth sequences.
+        y_pred (List[List[str]]): Predicted sequences.
+        compute_mv2h (bool, optional): Whether to compute MV2H metrics. Defaults to False.
+
+    Returns:
+        Dict[str, float]: Dictionary with the computed metrics. The keys are:
+            - "sym-er": Symbol Error Rate.
+            - "seq-er": Sequence Error Rate.
+            If compute_mv2h is True, the dictionary will also contain:
+                - "multi-pitch": Multi-pitch.
+                - "voice": Voice.
+                - "meter": Meter.
+                - "harmony": Harmony.
+                - "note_value": Note value.
+                - "mv2h": MV2H.
+    """
     # ------------------------------- Sym-ER and Seq-ER:
     metrics = compute_ed_metrics(y_true=y_true, y_pred=y_pred)
     if compute_mv2h:
@@ -72,6 +91,9 @@ def compute_ed_metrics(
 #################################################################### MV2H:
 
 
+# TODO: WORK IN PROGRESS!
+
+
 def compute_mv2h_metrics(
     y_true: List[List[str]],
     y_pred: List[List[str]],
@@ -89,7 +111,7 @@ def compute_mv2h_metrics(
                 with open(in_file, "w") as fout:
                     for element in line:
                         fout.write(element)
-            except:
+            except Exception:
                 pass
 
     def krn2midi(in_file: str) -> str:
@@ -130,7 +152,7 @@ def compute_mv2h_metrics(
         res_dict = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
         try:
             res_dict = mv2h(reference_file, transcription_file)
-        except:
+        except Exception:
             pass
 
         # Remove auxiliar files
@@ -155,7 +177,7 @@ def compute_mv2h_metrics(
             with open(out_file, "w") as fout:
                 for token in voice:
                     fout.write(token + "\n")
-        except:
+        except Exception:
             bool_voiceExists = False
 
         return bool_voiceExists
@@ -194,7 +216,7 @@ def compute_mv2h_metrics(
                     global_res_dict.__meter__ += res_dict.meter
                     global_res_dict.__harmony__ += res_dict.harmony
                     global_res_dict.__note_value__ += res_dict.note_value
-                except:
+                except Exception:
                     pass
             else:
                 eval_voices = False
@@ -240,7 +262,7 @@ def compute_mv2h_metrics(
                     flag_CON_TOKEN = True
                 else:
                     if token != "DOT":
-                        if flag_CON_TOKEN == True:
+                        if flag_CON_TOKEN is True:
                             if len(line) > 0:
                                 line[-1] = line[-1] + " " + token
                             else:
@@ -271,7 +293,7 @@ def compute_mv2h_metrics(
         flag_polyphonic_kern = False
         try:
             a = converterm21.parse("predKern.krn").write("midi")
-        except:
+        except Exception:
             flag_polyphonic_kern = False
 
         if flag_polyphonic_kern:

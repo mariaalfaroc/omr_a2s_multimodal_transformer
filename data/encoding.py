@@ -1,5 +1,5 @@
 import re
-from typing import List, Union
+from typing import List, Optional
 
 import numpy as np
 
@@ -15,9 +15,14 @@ ENCODING_OPTIONS = ["kern", "bekern"]
 
 
 class krnParser:
-    """Main Kern parser operations class."""
+    """
+    Main Kern parser operations class.
 
-    def __init__(self, encoding: str = "bekern") -> None:
+    Args:
+        encoding (str): Encoding to be used for the parser. Choose between 'kern' or 'bekern'. Defaults to 'bekern'.
+    """
+
+    def __init__(self, encoding: str = "bekern"):
         # Check encoding
         assert (
             encoding in ENCODING_OPTIONS
@@ -42,7 +47,7 @@ class krnParser:
             in_src = fin.read().splitlines()
         return np.array(in_src)
 
-    def _postprocessKernSequence(self, in_score: list) -> list:
+    def _postprocessKernSequence(self, in_score: List[List[str]]) -> List[List[str]]:
         """Exchanging '*' for the actual symbol."""
 
         # Retrieving positions with '*'
@@ -98,7 +103,7 @@ class krnParser:
 
         return in_score
 
-    def _cleanKernFile(self, file_path: str) -> list:
+    def _cleanKernFile(self, file_path: str) -> List[List[str]]:
         """Convert complete kern sequence to CLEAN kern format."""
         in_file = self._readSrcFile(file_path=file_path)
 
@@ -129,7 +134,7 @@ class krnParser:
 
         return out_score
 
-    def _cleanKernToken(self, in_token: str) -> Union[str, None]:
+    def _cleanKernToken(self, in_token: str) -> Optional[str]:
         """Convert a kern token to its CLEAN equivalent."""
         out_token = None  # Default
 
@@ -186,6 +191,15 @@ class krnParser:
     # ---------------------------------------------------------------------------- ENCODE CALL
 
     def encode(self, file_path: str) -> List[str]:
+        """
+        Encode a polyphonic kern file to a list of tokens.
+
+        Args:
+            file_path (str): Path to the file to be encoded.
+
+        Returns:
+            List[str]: List of tokens representing the encoded file.
+        """
         y_clean = self._cleanKernFile(file_path)
         y_coded = []
 

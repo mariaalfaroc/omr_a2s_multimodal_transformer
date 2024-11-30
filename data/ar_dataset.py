@@ -1,23 +1,22 @@
-import os
 import json
 import math
+import os
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 from lightning.pytorch import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
 
 from data.encoding import krnParser
 from data.prepare_dataset import GRANDSTAFF_PATH
-from transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION
 from data.preprocessing import (
+    ar_batch_preparation_audio,
+    ar_batch_preparation_image,
+    ar_batch_preparation_multimodal,
     preprocess_audio,
     preprocess_image,
-    ar_batch_preparation_multimodal,
-    ar_batch_preparation_image,
-    ar_batch_preparation_audio,
 )
-
+from transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION
 
 SOS_TOKEN = "<sos>"  # Start-of-sequence token
 EOS_TOKEN = "<eos>"  # End-of-sequence token
@@ -35,13 +34,26 @@ DATASETS = [
 
 
 class ARDataModule(LightningDataModule):
+    """
+    Auto-regressive data module for the GRANDSTAFF collection.
+
+    Args:
+        ds_name (str): Dataset name. It must be one of the following: "grandstaff", "beethoven", "chopin", "hummel", "joplin", "mozart", "scarlatti-d".
+        krn_encoding (str, optional): Encoding for the krn files. It must be one of the following: "bekern", "krn". Defaults to "bekern".
+        input_modality (str, optional): Input modality. It must be one of the following: "audio", "image", "both". Defaults to "both".
+        use_distorted_images (bool, optional): If True, the distorted images are used. Only used if input_modality == "image" or "both". Defaults to False.
+        img_height (Optional[int], optional): Image height. If None, the original image height is used. Only used if input_modality == "image" or "both". Defaults to None.
+        batch_size (int, optional): Batch size. Defaults to 16.
+        num_workers (int, optional): Number of workers. Defaults to 20.
+    """
+
     def __init__(
         self,
         ds_name: str,
         krn_encoding: str = "bekern",
         input_modality: str = "both",  # "audio" or "image" or "both"
         use_distorted_images: bool = False,
-        img_height: int = None,  # If None, the original image height is used
+        img_height: Optional[int] = None,  # If None, the original image height is used
         batch_size: int = 16,
         num_workers: int = 20,
     ):
@@ -92,7 +104,7 @@ class ARDataModule(LightningDataModule):
                 img_height=self.img_height,
             )
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return DataLoader(
             self.train_ds,
             batch_size=self.batch_size,
@@ -101,7 +113,7 @@ class ARDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )  # prefetch_factor=2
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return DataLoader(
             self.val_ds,
             batch_size=1,
@@ -109,7 +121,7 @@ class ARDataModule(LightningDataModule):
             num_workers=self.num_workers,
         )  # prefetch_factor=2
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         return DataLoader(
             self.test_ds,
             batch_size=1,
@@ -117,48 +129,50 @@ class ARDataModule(LightningDataModule):
             num_workers=self.num_workers,
         )  # prefetch_factor=2
 
-    def predict_dataloader(self):
+    def predict_dataloader(self) -> DataLoader:
         print("Using test_dataloader for predictions.")
         return self.test_dataloader(self)
 
-    def get_w2i_and_i2w(self):
+    def get_w2i_and_i2w(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         try:
             return self.train_ds.w2i, self.train_ds.i2w
         except AttributeError:
             return self.test_ds.w2i, self.test_ds.i2w
 
-    def get_max_seq_len(self):
+    def get_max_seq_len(self) -> int:
         try:
             return self.train_ds.max_seq_len
         except AttributeError:
             return self.test_ds.max_seq_len
 
-    def get_max_image_height_and_width(self):
+    def get_max_image_height_and_width(self) -> Tuple[int, int]:
         try:
             return self.train_ds.max_image_height, self.train_ds.max_image_width
         except AttributeError:
             return self.test_ds.max_image_height, self.test_ds.max_image_width
 
-    def get_max_audio_height_and_width(self):
+    def get_max_audio_height_and_width(self) -> Tuple[int, int]:
         try:
             return self.train_ds.max_audio_height, self.train_ds.max_audio_width
         except AttributeError:
             return self.test_ds.max_audio_height, self.test_ds.max_audio_width
 
-    def get_max_input_size(self) -> tuple:
-        # NOTE
-        # This would end up depending on the future multimodal transformer
-        # implementation. For now, we assume that the input size is the same.
+    def get_max_input_size(
+        self,
+    ) -> Union[Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """
+        Returns the maximum height and width for the input modality:
+            - If input_modality == "image" or "audio", it returns a tuple of two integers.
+            - If input_modality == "both", it returns a tuple of two tuples of two integers. First tuple for images and second tuple for audios.
+        """
         if self.input_modality == "image":
             return self.get_max_image_height_and_width()
         elif self.input_modality == "audio":
             return self.get_max_audio_height_and_width()
         elif self.input_modality == "both":
-            img_height, img_width = self.get_max_image_height_and_width()
-            audio_height, audio_width = self.get_max_audio_height_and_width()
             return (
-                max(img_height, audio_height),
-                max(img_width, audio_width),
+                self.get_max_image_height_and_width(),
+                self.get_max_audio_height_and_width(),
             )
 
 
@@ -166,6 +180,18 @@ class ARDataModule(LightningDataModule):
 
 
 class ARDataset(Dataset):
+    """
+    Auto-regressive dataset for the GRANDSTAFF collection.
+
+    Args:
+        ds_name (str): Dataset name. It must be one of the following: "grandstaff", "beethoven", "chopin", "hummel", "joplin", "mozart", "scarlatti-d".
+        partition_type (str): Partition type. It must be one of the following: "train", "val", "test".
+        krn_encoding (str, optional): Encoding for the krn files. It must be one of the following: "bekern", "krn". Defaults to "bekern".
+        input_modality (str, optional): Input modality. It must be one of the following: "audio", "image", "both". Defaults to "both".
+        use_distorted_images (bool, optional): If True, the distorted images are used. Only used if input_modality == "image" or "both". Defaults to False.
+        img_height (Optional[int], optional): Image height. If None, the original image height is used. Only used if input_modality == "image" or "both". Defaults to None.
+    """
+
     def __init__(
         self,
         ds_name: str,
@@ -173,7 +199,7 @@ class ARDataset(Dataset):
         krn_encoding: str = "bekern",
         input_modality: str = "both",  # "audio" or "image" or "both"
         use_distorted_images: bool = False,
-        img_height: int = None,  # If None, the original image height is used
+        img_height: Optional[int] = None,  # If None, the original image height is used
     ):
         self.ds_name = ds_name.lower()
         self.partition_type = partition_type
@@ -241,7 +267,15 @@ class ARDataset(Dataset):
         # Set max_seq_len, max_image_len and max_audio_len
         self.set_max_lens()
 
-    def get_inputs_and_transcripts_files(self):
+    def get_inputs_and_transcripts_files(
+        self,
+    ) -> Tuple[Tuple[Optional[List[str]], Optional[List[str]]], List[str]]:
+        """
+        Returns a tuple of two elements:
+            - The first element is a tuple of two lists: the first list contains the paths of the images or None if input_modality == "audio"
+            the second list contains the paths of the audios or None if input_modality == "image". Both lists are present if input_modality == "both".
+            - The second element is a list of the paths of the transcripts.
+        """
         images = []
         audios = []
         transcripts = []
@@ -292,7 +326,7 @@ class ARDataset(Dataset):
             # self.input_modality == "both"
             return (images, audios), transcripts
 
-    def check_and_retrieve_vocabulary(self):
+    def check_and_retrieve_vocabulary(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         w2i = {}
         i2w = {}
 
@@ -307,7 +341,7 @@ class ARDataset(Dataset):
 
         return w2i, i2w
 
-    def make_vocabulary(self):
+    def make_vocabulary(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         vocab = []
         for partition_type in ["train", "val", "test"]:
             partition_file = os.path.join(
@@ -398,24 +432,24 @@ class ARDataset(Dataset):
 
     # ---------------------------------------------------------------------------- GETTERS
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.Y)
 
-    def __getitemimage__(self, idx):
+    def __getitemimage__(self, idx: int):
         x = preprocess_image(path=self.X[0][idx], img_height=self.img_height)
         y = self.preprocess_transcript(path=self.Y[idx])
         if self.partition_type == "train":
             return x, self.get_number_of_frames(x), y
         return x, y
 
-    def __getitemaudio__(self, idx):
+    def __getitemaudio__(self, idx: int):
         x = preprocess_audio(path=self.X[1][idx])
         y = self.preprocess_transcript(path=self.Y[idx])
         if self.partition_type == "train":
             return x, self.get_number_of_frames(x), y
         return x, y
 
-    def __getitemboth__(self, idx):
+    def __getitemboth__(self, idx: int):
         xi = preprocess_image(path=self.X[0][idx], img_height=self.img_height)
         xa = preprocess_audio(path=self.X[1][idx])
         y = self.preprocess_transcript(path=self.Y[idx])
@@ -429,16 +463,16 @@ class ARDataset(Dataset):
             )
         return xi, xa, y
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         return getattr(self, "__getitem" + self.input_modality + "__")(idx)
 
-    def preprocess_transcript(self, path: str):
+    def preprocess_transcript(self, path: str) -> torch.Tensor:
         y = self.krn_parser.encode(file_path=path)
         y = [SOS_TOKEN] + y + [EOS_TOKEN]
         y = [self.w2i[w] for w in y]
         return torch.tensor(y, dtype=torch.int64)
 
-    def get_number_of_frames(self, x):
+    def get_number_of_frames(self, x: torch.Tensor) -> int:
         # x is the output of preprocess_image or preprocess_audio
         # x.shape = [1, height, width] or [1, freq_bins, time_frames]
         return math.ceil(x.shape[1] / HEIGHT_REDUCTION) * math.ceil(

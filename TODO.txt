@@ -1,7 +1,0 @@
-- Las imágenes tienen cada una una altura distinta. Por ahora, estamos entrenando con un batch_size = 1.
-En caso de que usaramos más de una o se escalan todas a la misma altura o se hace padding para alto y ancho.
-El código está preparado para ambas cosas.
-- kern y bekern resultan idénticos tras el preprocesamiento que se hace del fichero. -> Usamos kern.
-- El MV2H todavía no está "terminado". Hay que terminar de pulirlo.
-- Comprobar que se enmascara correctamente la salida del encoder (cuando batch_size > 1); es decir, que se obvia el padding.
-- De cara a un Transformer multimodal, el color del background debería ser el mismo para ambos. Invertir los colores de la imagen.
