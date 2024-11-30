@@ -29,6 +29,9 @@ def train(
         int
     ] = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
     attn_window: int = -1,  # Number of past tokens to attends to; -1 == no limitation (attends to all past tokens)
+    mixer_type: Optional[
+        str
+    ] = None,  # Only used if input_modality == "both" -> to choose the mixer type of the MultimodalTransformer (can be "concat", "attn_img", "attn_audio", or "attn_both")
     epochs: int = 1000,
     patience: int = 20,
     batch_size: int = 16,
@@ -89,6 +92,7 @@ def train(
                 max_seq_len=datamodule.get_max_seq_len(),
                 w2i=w2i,
                 i2w=i2w,
+                mixer_type=mixer_type,
                 attn_window=attn_window,
                 teacher_forcing_prob=0.2,
                 teacher_forcing_modality_prob=0.2,
