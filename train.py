@@ -81,7 +81,7 @@ def train(
 
     if not checkpoint_path:
         if input_modality == "both":
-            max_h_img, max_w_img, max_h_audio, max_w_audio = (
+            (max_h_img, max_w_img), (max_h_audio, max_w_audio) = (
                 datamodule.get_max_input_size()
             )
             model = model_class(
