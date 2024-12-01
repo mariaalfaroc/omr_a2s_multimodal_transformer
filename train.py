@@ -50,6 +50,7 @@ def train(
     )
     print(f"\tImage height: {img_height} (used if input_modality in ['image', 'both'])")
     print(f"\tAttention window: {attn_window}")
+    print(f"\tMixer type: {mixer_type} (used if input_modality == 'both')")
     print(f"\tEpochs: {epochs}")
     print(f"\tPatience: {patience}")
     print(f"\tBatch size: {batch_size}")
