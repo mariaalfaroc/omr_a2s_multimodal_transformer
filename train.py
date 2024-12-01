@@ -119,6 +119,9 @@ def train(
         if input_modality == "image" and img_height is not None
         else ""
     )
+    model_name += (
+        f"_{mixer_type}" if mixer_type is not None and input_modality == "both" else ""
+    )
     model_name += f"_{krn_encoding}"
 
     # Train, validate and test
