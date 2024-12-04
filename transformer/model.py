@@ -677,7 +677,23 @@ class MultimodalTransformer(LightningModule):
         # xa.shape = [B, LenAudio, C]
         x = torch.cat([xi, xa], dim=1)  # [B, LenImage + LenAudio, C]
         if xli is not None and xla is not None:
-            xl = xli + xla
+            # NOTE:
+            # We cannot do this:
+            # xl = xli + xla
+            # If we do so, at the Decoder::get_memory_key_padding_mask, we will be unmasking padded tokens and masking unpadded tokens
+
+            # We compute here the memory key padding mask
+            # Value 1 (True) means "ignored" and value 0 (False) means "not ignored"
+            xli_mask = torch.zeros(xi.shape[:2], dtype=torch.bool, device=xi.device)
+            for i, li in enumerate(xli):
+                xli_mask[i, li:] = True
+
+            xla_mask = torch.zeros(xa.shape[:2], dtype=torch.bool, device=xa.device)
+            for i, la in enumerate(xla):
+                xla_mask[i, la:] = True
+
+            # Concatenate the masks
+            xl = torch.cat([xli_mask, xla_mask], dim=1)  # [B, LenImage + LenAudio]
         else:
             xl = None
         return x, xl

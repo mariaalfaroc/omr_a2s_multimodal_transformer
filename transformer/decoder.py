@@ -165,6 +165,8 @@ class Decoder(nn.Module):
         Args:
             memory (torch.Tensor): The encoder output. Shape: [batch_size, src_sec_len, emb_dim].
             memory_len (Optional[torch.Tensor], optional): The actual length of each encoder output. Shape: [batch_size]. Defaults to None.
+                - When None, the encoder output is not padded (inference).
+                - When it is a torch.Tensor it can be either: the actual length of the encoder output or the already compute memory key padding mask (happens only for multimodal transformer training when using concatenated encoders outputs).
 
         Returns:
             Optional[torch.Tensor]: The generated memory key padding mask.
@@ -181,11 +183,21 @@ class Decoder(nn.Module):
         # memory_len.shape = [batch_size]
         # memory_pad_mask.shape = [batch_size, src_sec_len]
         # Value 1 (True) means "ignored" and value 0 (False) means "not ignored"
-        memory_pad_mask = torch.zeros(
-            memory.shape[:2], dtype=torch.bool, device=memory.device
-        )
-        for i, l in enumerate(memory_len):
-            memory_pad_mask[i, l:] = True
+
+        if memory_len.dtype == torch.bool:
+            assert (
+                memory_len.shape[0] == memory.shape[0]
+            ), f"Different batch sizes for memory and memory_len: {memory.shape[0]} != {memory_len.shape[0]}"
+            assert (
+                memory_len.shape[1] == memory.shape[1]
+            ), f"Different sequence lengths for memory and memory_len: {memory.shape[1]} != {memory_len.shape[1]}"
+            memory_pad_mask = memory_len.clone()
+        else:
+            memory_pad_mask = torch.zeros(
+                memory.shape[:2], dtype=torch.bool, device=memory.device
+            )
+            for i, l in enumerate(memory_len):
+                memory_pad_mask[i, l:] = True
         return memory_pad_mask
 
     @staticmethod
