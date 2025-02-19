@@ -75,34 +75,43 @@ class ARDataModule(LightningDataModule):
             )
         )
 
+        # Datasets
+        # To prevent executing setup() twice
+        self.train_ds = None
+        self.val_ds = None
+        self.test_ds = None
+
     def setup(self, stage: str):
         if stage == "fit":
-            self.train_ds = ARDataset(
-                ds_name=self.ds_name,
-                partition_type="train",
-                krn_encoding=self.krn_encoding,
-                input_modality=self.input_modality,
-                use_distorted_images=self.use_distorted_images,
-                img_height=self.img_height,
-            )
-            self.val_ds = ARDataset(
-                ds_name=self.ds_name,
-                partition_type="val",
-                krn_encoding=self.krn_encoding,
-                input_modality=self.input_modality,
-                use_distorted_images=self.use_distorted_images,
-                img_height=self.img_height,
-            )
+            if not self.train_ds:
+                self.train_ds = ARDataset(
+                    ds_name=self.ds_name,
+                    partition_type="train",
+                    krn_encoding=self.krn_encoding,
+                    input_modality=self.input_modality,
+                    use_distorted_images=self.use_distorted_images,
+                    img_height=self.img_height,
+                )
+            if not self.val_ds:
+                self.val_ds = ARDataset(
+                    ds_name=self.ds_name,
+                    partition_type="val",
+                    krn_encoding=self.krn_encoding,
+                    input_modality=self.input_modality,
+                    use_distorted_images=self.use_distorted_images,
+                    img_height=self.img_height,
+                )
 
         if stage == "test" or stage == "predict":
-            self.test_ds = ARDataset(
-                ds_name=self.ds_name,
-                partition_type="test",
-                krn_encoding=self.krn_encoding,
-                input_modality=self.input_modality,
-                use_distorted_images=self.use_distorted_images,
-                img_height=self.img_height,
-            )
+            if not self.test_ds:
+                self.test_ds = ARDataset(
+                    ds_name=self.ds_name,
+                    partition_type="test",
+                    krn_encoding=self.krn_encoding,
+                    input_modality=self.input_modality,
+                    use_distorted_images=self.use_distorted_images,
+                    img_height=self.img_height,
+                )
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
@@ -131,7 +140,7 @@ class ARDataModule(LightningDataModule):
 
     def predict_dataloader(self) -> DataLoader:
         print("Using test_dataloader for predictions.")
-        return self.test_dataloader(self)
+        return self.test_dataloader()
 
     def get_w2i_and_i2w(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         try:

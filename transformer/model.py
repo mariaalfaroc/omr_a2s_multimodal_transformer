@@ -97,39 +97,42 @@ class Transformer(LightningModule):
         self.padding_idx = w2i["<PAD>"]
         # Model
         self.max_seq_len = max_seq_len
+        self.max_input_height = max_input_height
+        self.max_input_width = max_input_width
         self.teacher_forcing_prob = teacher_forcing_prob
+        self.attn_window = attn_window
         self.encoder = Encoder(in_channels=NUM_CHANNELS)
         self.pos_2d = PositionalEncoding2D(
             num_channels=256,
-            max_height=math.ceil(max_input_height / HEIGHT_REDUCTION),
-            max_width=math.ceil(max_input_width / WIDTH_REDUCTION),
+            max_height=math.ceil(self.max_input_height / HEIGHT_REDUCTION),
+            max_width=math.ceil(self.max_input_width / WIDTH_REDUCTION),
         )
         self.decoder = Decoder(
             output_size=len(self.w2i),
-            max_seq_len=max_seq_len,
+            max_seq_len=self.max_seq_len,
             num_embeddings=len(self.w2i),
             padding_idx=self.padding_idx,
-            attn_window=attn_window,
+            attn_window=self.attn_window,
         )
-        self.summary(max_input_height, max_input_width)
+        self.summary()
         # Loss
         self.compute_loss = CrossEntropyLoss(ignore_index=self.padding_idx)
         # Predictions
         self.Y = []
         self.YHat = []
 
-    def summary(self, max_input_height: int, max_input_width: int):
+    def summary(self):
         print("Encoder")
         summary(
             self.encoder,
-            input_size=[1, NUM_CHANNELS, max_input_height, max_input_width],
+            input_size=[1, NUM_CHANNELS, self.max_input_height, self.max_input_width],
         )
         print("Decoder")
         tgt_size = [1, self.max_seq_len]
         memory_size = [
             1,
-            math.ceil(max_input_height / HEIGHT_REDUCTION)
-            * math.ceil(max_input_width / WIDTH_REDUCTION),
+            math.ceil(self.max_input_height / HEIGHT_REDUCTION)
+            * math.ceil(self.max_input_width / WIDTH_REDUCTION),
             256,
         ]
         memory_len_size = [1]
@@ -180,6 +183,7 @@ class Transformer(LightningModule):
         self.log("train_loss", loss, prog_bar=True, logger=True, on_epoch=True)
         return loss
 
+    @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         x, y = batch
         assert x.size(0) == y.size(0) == 1, "Inference only supports batch_size = 1"
@@ -212,9 +216,11 @@ class Transformer(LightningModule):
         self.Y.append(y)
         self.YHat.append(yhat)
 
+    @torch.no_grad()
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx)
 
+    @torch.no_grad()
     def on_validation_epoch_end(
         self, name: str = "val", print_random_samples: bool = False
     ):
@@ -231,11 +237,13 @@ class Transformer(LightningModule):
         self.YHat.clear()
         return metrics
 
+    @torch.no_grad()
     def on_test_epoch_end(self):
         return self.on_validation_epoch_end(name="test", print_random_samples=True)
 
     ##### FOR LATE MULTIMODAL FUSION:
 
+    @torch.no_grad()
     def get_pred_seq_and_pred_prob_seq(
         self, x: torch.Tensor
     ) -> Tuple[List[str], List[float]]:
@@ -416,27 +424,32 @@ class MultimodalTransformer(LightningModule):
         self.ytest_i2w = ytest_i2w if ytest_i2w is not None else i2w
         self.padding_idx = w2i["<PAD>"]
         # Model
+        self.max_img_height = max_img_height
+        self.max_img_width = max_img_width
+        self.max_audio_height = max_audio_height
+        self.max_audio_width = max_audio_width
         self.max_seq_len = max_seq_len
         self.teacher_forcing_prob = teacher_forcing_prob
         self.teacher_forcing_modality_prob = teacher_forcing_modality_prob
+        self.attn_window = attn_window
         self.image_encoder = Encoder(in_channels=NUM_CHANNELS)
         self.image_pos_2d = PositionalEncoding2D(
             num_channels=256,
-            max_height=math.ceil(max_img_height / HEIGHT_REDUCTION),
-            max_width=math.ceil(max_img_width / WIDTH_REDUCTION),
+            max_height=math.ceil(self.max_img_height / HEIGHT_REDUCTION),
+            max_width=math.ceil(self.max_img_width / WIDTH_REDUCTION),
         )
         self.audio_encoder = Encoder(in_channels=NUM_CHANNELS)
         self.audio_pos_2d = PositionalEncoding2D(
             num_channels=256,
-            max_height=math.ceil(max_audio_height / HEIGHT_REDUCTION),
-            max_width=math.ceil(max_audio_width / WIDTH_REDUCTION),
+            max_height=math.ceil(self.max_audio_height / HEIGHT_REDUCTION),
+            max_width=math.ceil(self.max_audio_width / WIDTH_REDUCTION),
         )
         self.decoder = Decoder(
             output_size=len(self.w2i),
-            max_seq_len=max_seq_len,
+            max_seq_len=self.max_seq_len,
             num_embeddings=len(self.w2i),
             padding_idx=self.padding_idx,
-            attn_window=attn_window,
+            attn_window=self.attn_window,
         )
         # Set modality mixer
         if mixer_type == "concat":
@@ -452,36 +465,34 @@ class MultimodalTransformer(LightningModule):
             self.mixer = self.mixer_attn_both
         else:
             raise ValueError(f"Invalid mixer type: {mixer_type}")
-        self.summary(max_img_height, max_img_width, max_audio_height, max_audio_width)
+        self.summary()
         # Loss
         self.compute_loss = CrossEntropyLoss(ignore_index=self.padding_idx)
         # Predictions
         self.Y = []
         self.YHat = []
 
-    def summary(
-        self,
-        max_img_height: int,
-        max_img_width: int,
-        max_audio_height: int,
-        max_audio_width: int,
-    ):
+    def summary(self):
         print("Image Encoder")
         summary(
             self.image_encoder,
-            input_size=[1, NUM_CHANNELS, max_img_height, max_img_width],
+            input_size=[1, NUM_CHANNELS, self.max_img_height, self.max_img_width],
         )
         print("Audio Encoder")
         summary(
             self.audio_encoder,
-            input_size=[1, NUM_CHANNELS, max_audio_height, max_audio_width],
+            input_size=[1, NUM_CHANNELS, self.max_audio_height, self.max_audio_width],
         )
         print("Decoder")
         tgt_size = [1, self.max_seq_len]
         memory_size = [
             1,
-            math.ceil(max(max_img_height, max_audio_height) / HEIGHT_REDUCTION)
-            * math.ceil(max(max_img_width, max_audio_width) / WIDTH_REDUCTION),
+            math.ceil(
+                max(self.max_img_height, self.max_audio_height) / HEIGHT_REDUCTION
+            )
+            * math.ceil(
+                max(self.max_img_width, self.max_audio_width) / WIDTH_REDUCTION
+            ),
             256,
         ]
         memory_len_size = [1]
@@ -569,13 +580,16 @@ class MultimodalTransformer(LightningModule):
         """Error the ground truth sequence with a probability of `teacher_forcing_prob`."""
         # y.shape = [batch_size, seq_len]
         y_errored = y.clone()
-        for i in range(y_errored.size(0)):
-            for j in range(y_errored.size(1)):
-                if (
-                    random.random() < self.teacher_forcing_prob
-                    and y[i, j] != self.padding_idx
-                ):
-                    y_errored[i, j] = random.randint(0, len(self.w2i) - 1)
+        # Create a random mask with the same shape as y_errored
+        random_mask = torch.rand_like(y_errored, dtype=torch.float) < self.teacher_forcing_prob
+        # Create a mask for non-padding tokens
+        non_padding_mask = y != self.padding_idx
+        # Combine the random mask and non-padding mask
+        combined_mask = random_mask & non_padding_mask
+        # Generate random indices for the entire matrix
+        random_indices = torch.randint(0, len(self.w2i), y_errored.shape, device=y_errored.device)
+        # Apply the random indices only where the combined mask is True
+        y_errored = torch.where(combined_mask, random_indices, y_errored)
         return y_errored
 
     def apply_teacher_forcing_modality(self) -> str:
@@ -609,6 +623,7 @@ class MultimodalTransformer(LightningModule):
         self.log("train_loss", loss, prog_bar=True, logger=True, on_epoch=True)
         return loss
 
+    @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         xi, xa, y = batch
         assert (
@@ -641,9 +656,11 @@ class MultimodalTransformer(LightningModule):
         self.Y.append(y)
         self.YHat.append(yhat)
 
+    @torch.no_grad()
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx)
 
+    @torch.no_grad()
     def on_validation_epoch_end(
         self, name: str = "val", print_random_samples: bool = False
     ):
@@ -660,6 +677,7 @@ class MultimodalTransformer(LightningModule):
         self.YHat.clear()
         return metrics
 
+    @torch.no_grad()
     def on_test_epoch_end(self):
         return self.on_validation_epoch_end(name="test", print_random_samples=True)
 
