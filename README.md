@@ -4,9 +4,7 @@
 
 <h1 align='center'>Multimodal audio and image to score transcription</h1>
 
-<!---
 <h4 align='center'>Full text coming soon<a href='' target='_blank'></a>.</h4>
---->
 
 <p align='center'>
   <img src='https://img.shields.io/badge/python-3.11.0-orange' alt='Python'>
@@ -16,30 +14,62 @@
 </p>
 
 <p align='center'>
-  <!---<a href='#about'>About</a> •--->
+  <a href='#about'>About</a> •
   <a href='#how-to-use'>How To Use</a> •
-  <!---<a href='#citations'>Citations</a> •--->
+  <a href='#citations'>Citations</a> •
   <a href='#acknowledgments'>Acknowledgments</a> •
   <a href='#license'>License</a>
 </p>
 
-<!---
+
 ## About
---->
+
+*Coming soon.*
 
 
 ## How To Use
 
-### Set up
+### Set Up with Conda
 
-Install the required [`libraries`](requirements.txt):
+Follow these steps to set up the environment using Conda:
+
 ```bash
-pip install -r requirements
+# Clone the repository
+git clone https://github.com/mariaalfaroc/omr_a2s_multimodal_transformer
+
+# Navigate to the project directory
+cd omr_a2s_multimodal_transformer
+
+# Create and activate a new Conda environment
+conda create -n omr_a2s_transformer python=3.11
+conda activate omr_a2s_transformer
+
+# Install the required packages
+pip install -r requirements.txt
 ```
 
-Alternatively, you can use the included [`Dockerfile`](Dockerfile):
+#### Set Up with Docker
+
+Follow these steps to set up the project using Docker:
+
 ```bash
-docker build --tag omr_a2s_multimodal_transformer:latest .
+# Clone the repository
+git clone https://github.com/mariaalfaroc/omr_a2s_multimodal_transformer
+
+# Navigate to the project directory
+cd omr_a2s_multimodal_transformer
+
+# Build the Docker image
+docker build -t omr_a2s_transformer_image .
+
+# Run (launch) the Docker container
+docker run --name omr_a2s_transformer --gpus "device=0" -itd --rm --shm-size=40g -v $(pwd):/app omr_a2s_transformer_image
+
+# Enter the running Docker container’s shell
+docker exec -it omr_a2s_transformer /bin/bash
+
+# Install the required packages inside the container
+pip install -r requirements.txt
 ```
 
 ### Dataset
@@ -57,35 +87,26 @@ The specific steps to follow are:
 $ python -u data/prepare_dataset.py
 ```
 
-<!---
 ### Experiments
 
+*Coming soon.*
 
 
 ## Citations
 
 ```bibtex
-@inproceedings{,
-  title     = {{}},
-  author    = {},
-  booktitle = {{}},
-  year      = {},
-  publisher = {},
-  address   = {},
-  month     = {},
-}
-@article{,
-  title     = {{}},
-  author    = {},
+@article{luna2025omra2stransformer,
+  title     = {{Multimodal Transcription Transformer for Polyphonic Music Transcription}},
+  author    = {Luna-Barahona, Noelia and Alfaro-Contreras, Mar{\'\i}a and P{\'\e}rez-Sancho, Carlos and Valero-Mas, Jose J and Calvo-Zaragoza, Jorge},
   journal   = {{}},
   volume    = {},
   pages     = {},
-  year      = {},
+  year      = {2025},
   publisher = {},
   doi       = {},
 }
 ```
---->
+
 
 ## Acknowledgments
 
