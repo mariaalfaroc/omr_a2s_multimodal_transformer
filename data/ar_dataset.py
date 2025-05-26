@@ -269,12 +269,21 @@ class ARDataset(Dataset):
         # Check and retrieve vocabulary
         vocab_folder = os.path.join(GRANDSTAFF_PATH, "vocabs")
         os.makedirs(vocab_folder, exist_ok=True)
-        vocab_name = self.ds_name + f"_{vocab_name}_{krn_encoding}.json"
+        vocab_name = f"{vocab_name}_{krn_encoding}.json"
         self.w2i_path = os.path.join(vocab_folder, vocab_name)
         self.w2i, self.i2w = self.check_and_retrieve_vocabulary()
 
-        # Set max_seq_len, max_image_len and max_audio_len
-        self.set_max_lens()
+        # Check and retrive max lengths
+        max_lens_folder = os.path.join(GRANDSTAFF_PATH, "max_lens")
+        os.makedirs(max_lens_folder, exist_ok=True)
+        max_lens_name = f"{vocab_name}_{krn_encoding}.json"
+        self.max_lens_path = os.path.join(max_lens_folder, max_lens_name)
+        max_lens = self.check_and_retrieve_max_lens()
+        self.max_seq_len = max_lens["max_seq_len"]
+        self.max_image_height = max_lens["max_image_height"]
+        self.max_image_width = max_lens["max_image_width"]
+        self.max_audio_height = max_lens["max_audio_height"]
+        self.max_audio_width = max_lens["max_audio_width"]
 
     def get_inputs_and_transcripts_files(
         self,
@@ -351,39 +360,21 @@ class ARDataset(Dataset):
         return w2i, i2w
 
     def make_vocabulary(self) -> Tuple[Dict[str, int], Dict[int, str]]:
+        # Use the same vocabulary for the whole GRANDSTAFF collection
         vocab = []
-        for partition_type in ["train", "val", "test"]:
-            partition_file = os.path.join(
-                GRANDSTAFF_PATH,
-                "partitions",
-                self.ds_name,
-                partition_type + ".txt",
-            )
-            if self.ds_name == "grandstaff":
-                with open(partition_file, "r") as file:
-                    for s in file.read().splitlines():
-                        composer, s = s.strip().split("\t")
-                        current_ds_folder_path = os.path.join(GRANDSTAFF_PATH, composer)
-                        transcripts_folder_path = self.transcript_folder_path.replace(
-                            self.ds_folder_path, current_ds_folder_path
-                        )
-                        transcript = self.krn_parser.encode(
-                            file_path=os.path.join(
-                                transcripts_folder_path, s + self.transcript_extension
-                            )
-                        )
-                        vocab.extend(transcript)
-            else:
-                with open(partition_file, "r") as file:
-                    for s in file.read().splitlines():
-                        s = s.strip()
-                        transcript = self.krn_parser.encode(
-                            file_path=os.path.join(
-                                self.transcript_folder_path,
-                                s + self.transcript_extension,
-                            )
-                        )
-                        vocab.extend(transcript)
+        for foldername, subfolders, filenames in os.walk(GRANDSTAFF_PATH):
+            for filename in filenames:
+                if filename.startswith("."):
+                    continue
+
+                if filename.endswith(self.transcript_extension):
+                    transcript = self.krn_parser.encode(
+                        file_path=os.path.join(foldername, filename)
+                    )
+                    vocab.extend(transcript)
+                else:
+                    continue
+
         vocab = [SOS_TOKEN, EOS_TOKEN] + vocab
         vocab = sorted(set(vocab))
 
@@ -397,7 +388,20 @@ class ARDataset(Dataset):
 
         return w2i, i2w
 
-    def set_max_lens(self):
+    def check_and_retrieve_max_lens(self) -> Dict[str, int]:
+        max_lens = {}
+
+        if os.path.isfile(self.max_lens_path):
+            with open(self.max_lens_path, "r") as file:
+                max_lens = json.load(file)
+        else:
+            max_lens = self.make_max_lens()
+            with open(self.max_lens_path, "w") as file:
+                json.dump(max_lens, file)
+
+        return max_lens
+
+    def make_max_lens(self):
         # Set the maximum lengths for the whole GRANDSTAFF collection:
         # 1) Get the maximum transcript length
         # 2) Get the maximum image size
@@ -433,11 +437,13 @@ class ARDataset(Dataset):
                 else:
                     continue
 
-        self.max_seq_len = max_seq_len
-        self.max_image_height = max_image_height
-        self.max_image_width = max_image_width
-        self.max_audio_height = max_audio_height
-        self.max_audio_width = max_audio_width
+        return {
+            "max_seq_len": max_seq_len,
+            "max_image_height": max_image_height,
+            "max_image_width": max_image_width,
+            "max_audio_height": max_audio_height,
+            "max_audio_width": max_audio_width,
+        }
 
     # ---------------------------------------------------------------------------- GETTERS
 
