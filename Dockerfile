@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.0.0-cuda11.7-cudnn8-devel
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
 
 RUN apt update --fix-missing
 RUN apt install build-essential -y
