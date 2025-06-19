@@ -63,10 +63,7 @@ def parse_grandstaff_dataset():
             for filename in filenames:
                 if filename.startswith("."):
                     continue
-                new_filename = "_".join(
-                    foldername.replace(old_composer_path, "").split("/")[1:]
-                    + [filename]
-                )
+                new_filename = "_".join(foldername.replace(old_composer_path, "").split("/")[1:] + [filename])
                 if filename.endswith(".bekrn"):
                     shutil.move(
                         os.path.join(foldername, filename),
@@ -119,9 +116,7 @@ def krn2wav():
         for id, krn_file in enumerate(os.listdir(os.path.join(composer_path, "krn"))):
             # krn to midi
             try:
-                krn_stream = converter.parse(
-                    os.path.join(composer_path, "krn", krn_file)
-                )
+                krn_stream = converter.parse(os.path.join(composer_path, "krn", krn_file))
             except Exception as err:
                 errors.append(krn_file + "\t" + str(type(err)) + "\t" + str(err))
                 # Remove the file and all its corresponding files
@@ -152,17 +147,15 @@ def krn2wav():
             _ = krn_stream.write("midi", fp=midi_file)
 
             # midi to wav
-            wav_file = os.path.join(
-                composer_path, "wav", krn_file.replace(".krn", ".wav")
-            )
+            wav_file = os.path.join(composer_path, "wav", krn_file.replace(".krn", ".wav"))
             fs.midi_to_audio(midi_file, wav_file)
             os.remove(midi_file)
 
         # Save errors
         if len(errors) == 0:
-            print(f"All {id+1} files were converted to wav.")
+            print(f"All {id + 1} files were converted to wav.")
         else:
-            print(f"{len(errors)} out of {id+1} files could not be converted to wav.")
+            print(f"{len(errors)} out of {id + 1} files could not be converted to wav.")
             errors = "\n".join(errors)
             with open(os.path.join("./grandstaff/errors", f"{composer}.txt"), "w") as f:
                 f.write(errors)
@@ -189,11 +182,7 @@ def check_and_create_partitions():
             train = os.path.join(partition_folder, "train.txt")
             val = os.path.join(partition_folder, "val.txt")
             test = os.path.join(partition_folder, "test.txt")
-            if (
-                not os.path.exists(train)
-                or not os.path.exists(val)
-                or not os.path.exists(test)
-            ):
+            if not os.path.exists(train) or not os.path.exists(val) or not os.path.exists(test):
                 create_composer_partitions()
                 break
 
@@ -220,12 +209,7 @@ def create_composer_partitions():
     os.makedirs(partitions_path, exist_ok=True)
 
     for composer in os.listdir(GRANDSTAFF_PATH):
-        if (
-            composer == "partitions"
-            or composer == "errors"
-            or composer == "vocabs"
-            or composer.startswith(".")
-        ):
+        if composer == "partitions" or composer == "errors" or composer == "vocabs" or composer.startswith("."):
             continue
 
         partition_folder = os.path.join(partitions_path, composer)
@@ -254,9 +238,7 @@ def create_composer_partitions():
         train, val = train_test_split(train_val, test_size=0.2, random_state=42)
 
         for partition, samples in zip(["train", "val", "test"], [train, val, test]):
-            with open(
-                os.path.join(partition_folder, f"{partition}.txt"), "w"
-            ) as partition_file:
+            with open(os.path.join(partition_folder, f"{partition}.txt"), "w") as partition_file:
                 partition_file.write("\n".join(samples))
 
 
@@ -274,9 +256,7 @@ def create_grandstaff_partitions():
         if composer == "grandstaff" or composer.startswith("."):
             continue
         for partition in ["train", "val", "test"]:
-            with open(
-                os.path.join(partitions_path, composer, f"{partition}.txt"), "r"
-            ) as partition_file:
+            with open(os.path.join(partitions_path, composer, f"{partition}.txt"), "r") as partition_file:
                 samples = partition_file.read().splitlines()
                 samples = [f"{composer}\t{s}" for s in samples]
                 with open(

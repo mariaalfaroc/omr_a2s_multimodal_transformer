@@ -46,9 +46,7 @@ def test(
     print(f"\tTest dataset: {ds_name}")
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
-    print(
-        f"\tUse distorted images: {use_distorted_images} (used if input_modality is 'image')"
-    )
+    print(f"\tUse distorted images: {use_distorted_images} (used if input_modality is 'image')")
     print(f"\tImage height: {img_height} (used if input_modality is 'image')")
     print(f"\tCheckpoint path: {checkpoint_path}")
 

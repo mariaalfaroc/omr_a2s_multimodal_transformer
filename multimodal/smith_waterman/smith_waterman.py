@@ -2,12 +2,13 @@ from typing import List, Dict, Tuple
 
 import swalign
 
-SWALIGN_RESERVED_WORDS = ["¡", "!", "|", ".", "-", " ", "/", "-//-", "    " ]
+SWALIGN_RESERVED_WORDS = ["¡", "!", "|", ".", "-", " ", "/", "-//-", "    "]
 SWALIGN_VOCAB = [chr(i).upper() for i in range(300)]
 SWALIGN_VOCAB = [i for i in SWALIGN_VOCAB if i not in SWALIGN_RESERVED_WORDS]
 SWALIGN_VOCAB = [i for i in SWALIGN_VOCAB if len(i) == 1]
-SWALIGN_VOCAB = sorted(set(SWALIGN_VOCAB)) 
+SWALIGN_VOCAB = sorted(set(SWALIGN_VOCAB))
 # len(SWALIGN_VOCAB) = 214; the maximum number of unique tokens in a sequence is 175
+
 
 def swalign_preprocess(r: List[str], q: List[str]) -> Tuple[str, str, Dict[str, str]]:
     """
@@ -21,7 +22,9 @@ def swalign_preprocess(r: List[str], q: List[str]) -> Tuple[str, str, Dict[str, 
         Tuple[str, str, Dict[str, str]]: Tuple of (reference, query, swa2w), where swa2w is a dictionary that maps swalign tokens to original tokens.
     """
     current_vocab = sorted(set(r + q))
-    assert len(current_vocab) < len(SWALIGN_VOCAB), f"Too many tokens for swalign! (len_current_vocab: {len(current_vocab)}, len_swalign_vocab: {len(SWALIGN_VOCAB)})"
+    assert len(current_vocab) < len(SWALIGN_VOCAB), (
+        f"Too many tokens for swalign! (len_current_vocab: {len(current_vocab)}, len_swalign_vocab: {len(SWALIGN_VOCAB)})"
+    )
     w2swa = dict(zip(current_vocab, SWALIGN_VOCAB))
     swa2w = dict(zip(SWALIGN_VOCAB, current_vocab))
     r = ["¡"] + [w2swa[i] for i in r] + ["!"]
@@ -35,7 +38,7 @@ def dump(alignment: swalign.Alignment) -> Tuple[str, str, str]:
     We have modified it to obtain (in the following order) the query, the matches, and the reference sequences; all of them have the same length.
     Matches is a string that contains either "|" if sequences match on a token, or "." if they disagree,
     or " " if one of them misses a token (in this case the token "-" is included at such position in the corresponding sequence).
-    
+
     Args:
         alignment (swalign.Alignment): Alignment object from swalign.
 
@@ -60,10 +63,7 @@ def dump(alignment: swalign.Alignment) -> Tuple[str, str, str]:
                 r += alignment.orig_ref[i]
                 if alignment.query[j] == alignment.ref[i] or (
                     alignment.wildcard
-                    and (
-                        alignment.query[j] in alignment.wildcard
-                        or alignment.ref[i] in alignment.wildcard
-                    )
+                    and (alignment.query[j] in alignment.wildcard or alignment.ref[i] in alignment.wildcard)
                 ):
                     m += "|"
                 else:
@@ -100,7 +100,7 @@ def preprocess_prob(s: str, prob: List[float]) -> List[float]:
     Args:
         s (str): String.
         prob (List[float]): Probability sequence.
-    
+
     Returns:
         List[float]: New probability sequence.
     """
@@ -135,7 +135,7 @@ def get_alignment(
         r (str): Reference string.
         q_prob (List[float]): Query probability sequence.
         r_prob (List[float]): Reference probability sequence.
-    
+
     Returns:
         str: Final alignment string.
     """
@@ -155,9 +155,7 @@ def get_alignment(
             alignment += qv if qv_prob >= rv_prob else rv
         elif mv == " ":
             # Scenario 3
-            assert (
-                qv == "-" or rv == "-"
-            ), f"qv or rv should be '-'! (qv: {qv}, rv: {rv})"
+            assert qv == "-" or rv == "-", f"qv or rv should be '-'! (qv: {qv}, rv: {rv})"
             alignment += qv if rv == "-" else rv
     return alignment
 
@@ -169,7 +167,7 @@ def undo_swalign_preprocess(alignment: str, swa2w: Dict[str, str]) -> List[str]:
     Args:
         alignment (str): Alignment string.
         swa2w (Dict[str, str]): Dictionary that maps swalign tokens to original tokens.
-    
+
     Returns:
         List[str]: Alignment as a string sequence that uses the original token vocabulary.
     """

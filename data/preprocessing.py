@@ -42,9 +42,7 @@ def preprocess_audio(path: str) -> torch.Tensor:
 def preprocess_image(path: str, img_height: Optional[int] = None) -> torch.Tensor:
     x = Image.open(path).convert("L")  # Convert to grayscale
     if img_height is not None:
-        new_width = int(
-            img_height * x.size[0] / x.size[1]
-        )  # Get width preserving aspect ratio
+        new_width = int(img_height * x.size[0] / x.size[1])  # Get width preserving aspect ratio
         x = x.resize((new_width, img_height))  # Resize
     x = TOTENSOR(x)  # Convert to tensor (normalizes to [0, 1])
     return x
@@ -72,9 +70,7 @@ def pad_batch_inputs(x: torch.Tensor, pad_value: float = 0.0) -> torch.Tensor:
     return x
 
 
-def pad_batch_transcripts(
-    x: torch.Tensor, dtype: torch.dtype = torch.int32
-) -> torch.Tensor:
+def pad_batch_transcripts(x: torch.Tensor, dtype: torch.dtype = torch.int32) -> torch.Tensor:
     max_length = max(x, key=lambda sample: sample.shape[0]).shape[0]
     x = torch.stack([F.pad(i, pad=(0, max_length - i.shape[0])) for i in x], dim=0)
     x = x.type(dtype=dtype)
@@ -120,9 +116,7 @@ def ar_batch_preparation_audio(
 
 def ar_batch_preparation_multimodal(
     batch,
-) -> Tuple[
-    torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
-]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Returns a batch consisting of:
         - xi (torch.Tensor): padded images. Shape: [batch_size, NUM_CHANNELS, max_height, max_width].

@@ -94,12 +94,8 @@ def test(
 
     # Freeze models and put them in eval mode
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    image_model = Transformer.load_from_checkpoint(
-        image_checkpoint_path, map_location=device
-    ).to(device)
-    audio_model = Transformer.load_from_checkpoint(
-        audio_checkpoint_path, map_location=device
-    ).to(device)
+    image_model = Transformer.load_from_checkpoint(image_checkpoint_path, map_location=device).to(device)
+    audio_model = Transformer.load_from_checkpoint(audio_checkpoint_path, map_location=device).to(device)
     image_model.freeze()
     audio_model.freeze()
     image_model.eval()
@@ -123,22 +119,16 @@ def test(
     IMG_YHAT, IMG_YHAT_PROB = [], []
     AUDIO_YHAT, AUDIO_YHAT_PROB = [], []
     with torch.no_grad():
-        for batch in track(
-            test_loader, description="Obtaining individual predictions..."
-        ):
+        for batch in track(test_loader, description="Obtaining individual predictions..."):
             xi, xa, y = batch
 
             # Get image model prediction
-            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(
-                xi.to(image_model.device)
-            )
+            img_yhat, img_yhat_prob = image_model.get_pred_seq_and_pred_prob_seq(xi.to(image_model.device))
             IMG_YHAT.append(img_yhat)
             IMG_YHAT_PROB.append(img_yhat_prob)
 
             # Get audio model prediction
-            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(
-                xa.to(audio_model.device)
-            )
+            audio_yhat, audio_yhat_prob = audio_model.get_pred_seq_and_pred_prob_seq(xa.to(audio_model.device))
             AUDIO_YHAT.append(audio_yhat)
             AUDIO_YHAT_PROB.append(audio_yhat_prob)
 

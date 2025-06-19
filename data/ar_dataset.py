@@ -68,11 +68,7 @@ class ARDataModule(LightningDataModule):
         self.collate_fn = (
             ar_batch_preparation_multimodal
             if input_modality == "both"
-            else (
-                ar_batch_preparation_image
-                if input_modality == "image"
-                else ar_batch_preparation_audio
-            )
+            else (ar_batch_preparation_image if input_modality == "image" else ar_batch_preparation_audio)
         )
 
         # Datasets
@@ -213,9 +209,7 @@ class ARDataset(Dataset):
         self.ds_name = ds_name.lower()
         self.partition_type = partition_type
         self.input_modality = input_modality.lower()
-        self.use_distorted_images = (
-            use_distorted_images  # Only used if input_modality == "image" or "both"
-        )
+        self.use_distorted_images = use_distorted_images  # Only used if input_modality == "image" or "both"
         self.img_height = img_height  # Only used if input_modality == "image" or "both"
         self.init(krn_encoding=krn_encoding, vocab_name="ar_w2i")
 
@@ -249,9 +243,7 @@ class ARDataset(Dataset):
             if self.krn_parser.encoding == "bekern"
             else os.path.join(self.ds_folder_path, "krn")
         )
-        self.transcript_extension = (
-            ".bekrn" if self.krn_parser.encoding == "bekern" else ".krn"
-        )
+        self.transcript_extension = ".bekrn" if self.krn_parser.encoding == "bekern" else ".krn"
 
         # Get audios or images or both and transcripts files
         # X = (list of images_paths, list of audios_paths); Y is a list of transcripts_paths
@@ -297,45 +289,27 @@ class ARDataset(Dataset):
         images = []
         audios = []
         transcripts = []
-        partition_file = os.path.join(
-            GRANDSTAFF_PATH, "partitions", self.ds_name, self.partition_type + ".txt"
-        )
+        partition_file = os.path.join(GRANDSTAFF_PATH, "partitions", self.ds_name, self.partition_type + ".txt")
         if self.ds_name == "grandstaff":
             with open(partition_file, "r") as file:
                 for s in file.read().splitlines():
                     composer, s = s.strip().split("\t")
                     current_ds_folder_path = os.path.join(GRANDSTAFF_PATH, composer)
-                    image_folder_path = self.image_folder_path.replace(
-                        self.ds_folder_path, current_ds_folder_path
-                    )
-                    audio_folder_path = self.audio_folder_path.replace(
-                        self.ds_folder_path, current_ds_folder_path
-                    )
+                    image_folder_path = self.image_folder_path.replace(self.ds_folder_path, current_ds_folder_path)
+                    audio_folder_path = self.audio_folder_path.replace(self.ds_folder_path, current_ds_folder_path)
                     transcripts_folder_path = self.transcript_folder_path.replace(
                         self.ds_folder_path, current_ds_folder_path
                     )
-                    images.append(
-                        os.path.join(image_folder_path, s + self.img_extension)
-                    )
+                    images.append(os.path.join(image_folder_path, s + self.img_extension))
                     audios.append(os.path.join(audio_folder_path, s + ".wav"))
-                    transcripts.append(
-                        os.path.join(
-                            transcripts_folder_path, s + self.transcript_extension
-                        )
-                    )
+                    transcripts.append(os.path.join(transcripts_folder_path, s + self.transcript_extension))
         else:
             with open(partition_file, "r") as file:
                 for s in file.read().splitlines():
                     s = s.strip()
-                    images.append(
-                        os.path.join(self.image_folder_path, s + self.img_extension)
-                    )
+                    images.append(os.path.join(self.image_folder_path, s + self.img_extension))
                     audios.append(os.path.join(self.audio_folder_path, s + ".wav"))
-                    transcripts.append(
-                        os.path.join(
-                            self.transcript_folder_path, s + self.transcript_extension
-                        )
-                    )
+                    transcripts.append(os.path.join(self.transcript_folder_path, s + self.transcript_extension))
         if self.input_modality == "image":
             return (images, None), transcripts
         elif self.input_modality == "audio":
@@ -368,9 +342,7 @@ class ARDataset(Dataset):
                     continue
 
                 if filename.endswith(self.transcript_extension):
-                    transcript = self.krn_parser.encode(
-                        file_path=os.path.join(foldername, filename)
-                    )
+                    transcript = self.krn_parser.encode(file_path=os.path.join(foldername, filename))
                     vocab.extend(transcript)
                 else:
                     continue
@@ -415,12 +387,8 @@ class ARDataset(Dataset):
                     continue
 
                 if filename.endswith(self.transcript_extension):
-                    transcript = self.krn_parser.encode(
-                        file_path=os.path.join(foldername, filename)
-                    )
-                    max_seq_len = max(
-                        max_seq_len, len(transcript) + 1
-                    )  # +1 for EOS token
+                    transcript = self.krn_parser.encode(file_path=os.path.join(foldername, filename))
+                    max_seq_len = max(max_seq_len, len(transcript) + 1)  # +1 for EOS token
                 elif filename.endswith(self.img_extension):
                     if "distorted" in filename and not self.use_distorted_images:
                         continue
@@ -490,6 +458,4 @@ class ARDataset(Dataset):
     def get_number_of_frames(self, x: torch.Tensor) -> int:
         # x is the output of preprocess_image or preprocess_audio
         # x.shape = [1, height, width] or [1, freq_bins, time_frames]
-        return math.ceil(x.shape[1] / HEIGHT_REDUCTION) * math.ceil(
-            x.shape[2] / WIDTH_REDUCTION
-        )
+        return math.ceil(x.shape[1] / HEIGHT_REDUCTION) * math.ceil(x.shape[2] / WIDTH_REDUCTION)

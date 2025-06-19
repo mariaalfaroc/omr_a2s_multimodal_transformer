@@ -66,16 +66,12 @@ def weighted_prediction(
         # Weighted prediction
         y_out_hat = alpha * img_y_out_hat + (1 - alpha) * audio_y_out_hat
         y_out_hat_token = y_out_hat.argmax(dim=-1).item()
-        y_out_hat_word = img_model.i2w[
-            y_out_hat_token
-        ]  # Both models have the same vocabulary
+        y_out_hat_word = img_model.i2w[y_out_hat_token]  # Both models have the same vocabulary
         yhat.append(y_out_hat_word)
         if y_out_hat_word == EOS_TOKEN:
             break
 
-        y_in = torch.cat(
-            [y_in, torch.tensor([[y_out_hat_token]]).long().to(xi.device)], dim=1
-        )
+        y_in = torch.cat([y_in, torch.tensor([[y_out_hat_token]]).long().to(xi.device)], dim=1)
 
     return yhat
 
@@ -138,12 +134,8 @@ def test(
 
     # Freeze models and put them in eval mode
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    image_model = Transformer.load_from_checkpoint(
-        image_checkpoint_path, map_location=device
-    ).to(device)
-    audio_model = Transformer.load_from_checkpoint(
-        audio_checkpoint_path, map_location=device
-    ).to(device)
+    image_model = Transformer.load_from_checkpoint(image_checkpoint_path, map_location=device).to(device)
+    audio_model = Transformer.load_from_checkpoint(audio_checkpoint_path, map_location=device).to(device)
     image_model.freeze()
     audio_model.freeze()
     image_model.eval()
@@ -169,9 +161,7 @@ def test(
     Y = []
     YHAT = []
     with torch.no_grad():
-        for batch in track(
-            test_loader, description="Obtaining weighted predictions..."
-        ):
+        for batch in track(test_loader, description="Obtaining weighted predictions..."):
             xi, xa, y = batch
 
             # Get weighted prediction

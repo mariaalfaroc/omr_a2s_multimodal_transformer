@@ -46,9 +46,7 @@ def train(
     print(f"\tDataset: {ds_name}")
     print(f"\tKern encoding: {krn_encoding}")
     print(f"\tInput modality: {input_modality}")
-    print(
-        f"\tUse distorted images: {use_distorted_images} (used if input_modality in ['image', 'both'])"
-    )
+    print(f"\tUse distorted images: {use_distorted_images} (used if input_modality in ['image', 'both'])")
     print(f"\tImage height: {img_height} (used if input_modality in ['image', 'both'])")
     print(f"\tAttention window: {attn_window}")
     print(f"\tMixer type: {mixer_type} (used if input_modality == 'both')")
@@ -84,9 +82,7 @@ def train(
 
     if not checkpoint_path:
         if input_modality == "both":
-            (max_h_img, max_w_img), (max_h_audio, max_w_audio) = (
-                datamodule.get_max_input_size()
-            )
+            (max_h_img, max_w_img), (max_h_audio, max_w_audio) = datamodule.get_max_input_size()
             model = model_class(
                 max_img_height=max_h_img,
                 max_img_width=max_w_img,
@@ -114,17 +110,9 @@ def train(
 
     # Model name
     model_name = input_modality
-    model_name += (
-        "_distorted" if input_modality == "image" and use_distorted_images else ""
-    )
-    model_name += (
-        f"_height{img_height}"
-        if input_modality == "image" and img_height is not None
-        else ""
-    )
-    model_name += (
-        f"_{mixer_type}" if mixer_type is not None and input_modality == "both" else ""
-    )
+    model_name += "_distorted" if input_modality == "image" and use_distorted_images else ""
+    model_name += f"_height{img_height}" if input_modality == "image" and img_height is not None else ""
+    model_name += f"_{mixer_type}" if mixer_type is not None and input_modality == "both" else ""
     model_name += f"_{krn_encoding}"
 
     # Train, validate and test

@@ -101,9 +101,7 @@ class Decoder(nn.Module):
             kernel_size=1,
         )
 
-    def forward(
-        self, tgt: torch.Tensor, memory: torch.Tensor, memory_len: torch.Tensor
-    ):
+    def forward(self, tgt: torch.Tensor, memory: torch.Tensor, memory_len: torch.Tensor):
         """
         Forward pass of the transformer decoder.
 
@@ -123,9 +121,7 @@ class Decoder(nn.Module):
         # tgt.shape = [batch_size, tgt_sec_len]
 
         # Embedding + 1D PE
-        tgt_emb = self.pos_1d(
-            self.embedding(tgt)
-        )  # tgt_emb.shape = [batch_size, tgt_sec_len, emb_dim]
+        tgt_emb = self.pos_1d(self.embedding(tgt))  # tgt_emb.shape = [batch_size, tgt_sec_len, emb_dim]
 
         # Get memory key padding mask
         # Ignore padding in the encoder output
@@ -149,9 +145,7 @@ class Decoder(nn.Module):
 
         # Classification block
         tgt_pred = tgt_pred.permute(0, 2, 1).contiguous()
-        tgt_pred = self.out_layer(
-            tgt_pred
-        )  # tgt_pred.shape = [batch_size, output_size, tgt_sec_len]
+        tgt_pred = self.out_layer(tgt_pred)  # tgt_pred.shape = [batch_size, output_size, tgt_sec_len]
 
         return tgt_pred
 
@@ -185,17 +179,15 @@ class Decoder(nn.Module):
         # Value 1 (True) means "ignored" and value 0 (False) means "not ignored"
 
         if memory_len.dtype == torch.bool:
-            assert (
-                memory_len.shape[0] == memory.shape[0]
-            ), f"Different batch sizes for memory and memory_len: {memory.shape[0]} != {memory_len.shape[0]}"
-            assert (
-                memory_len.shape[1] == memory.shape[1]
-            ), f"Different sequence lengths for memory and memory_len: {memory.shape[1]} != {memory_len.shape[1]}"
+            assert memory_len.shape[0] == memory.shape[0], (
+                f"Different batch sizes for memory and memory_len: {memory.shape[0]} != {memory_len.shape[0]}"
+            )
+            assert memory_len.shape[1] == memory.shape[1], (
+                f"Different sequence lengths for memory and memory_len: {memory.shape[1]} != {memory_len.shape[1]}"
+            )
             memory_pad_mask = memory_len.clone()
         else:
-            memory_pad_mask = torch.zeros(
-                memory.shape[:2], dtype=torch.float32, device=memory.device
-            )
+            memory_pad_mask = torch.zeros(memory.shape[:2], dtype=torch.float32, device=memory.device)
             for i, l in enumerate(memory_len):
                 memory_pad_mask[i, l:] = 1
         return memory_pad_mask
@@ -254,13 +246,9 @@ class Decoder(nn.Module):
         # ATTENTION WINDOW MECHANISM
         # We limit the number of past tokens the decoder can see
         if self.attn_window > 0:
-            tgt_mask = self.create_variable_window_mask(
-                tgt_sec_len, self.attn_window, device=tgt.device
-            )
+            tgt_mask = self.create_variable_window_mask(tgt_sec_len, self.attn_window, device=tgt.device)
         else:
-            tgt_mask = nn.Transformer.generate_square_subsequent_mask(
-                tgt_sec_len, tgt.device
-            )
+            tgt_mask = nn.Transformer.generate_square_subsequent_mask(tgt_sec_len, tgt.device)
 
         # 0 == "<PAD>"
         # Pad token to be ignored by the attention mechanism
