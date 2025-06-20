@@ -14,10 +14,12 @@ AUDIO_HEIGHT = NUM_FREQ_BINS = 195
 TOTENSOR = transforms.ToTensor()
 
 
-def get_spectrogram_from_file(path: str) -> np.ndarray:
-    y, fs = librosa.load(path, sr=22050)
+def get_spectrogram_from_raw_audio(raw_audio: np.ndarray, sr: float) -> np.ndarray:
+    new_sr = 22050
+    y = librosa.resample(raw_audio, orig_sr=sr, target_sr=new_sr)
+
     stft_fmax = 2093
-    stft_frequency_filter_max = librosa.fft_frequencies(sr=fs, n_fft=2048) <= stft_fmax
+    stft_frequency_filter_max = librosa.fft_frequencies(sr=new_sr, n_fft=2048) <= stft_fmax
 
     stft = librosa.stft(y, hop_length=512, win_length=2048, window="hann")
     stft = stft[stft_frequency_filter_max]
@@ -29,26 +31,30 @@ def get_spectrogram_from_file(path: str) -> np.ndarray:
 
 
 @MEMORY.cache
-def preprocess_audio(path: str) -> torch.Tensor:
+def preprocess_audio(raw_audio: np.ndarray, sr: float, dtype=torch.float32) -> torch.Tensor:
     # Get spectrogram (already normalized)
-    x = get_spectrogram_from_file(path)
+    x = get_spectrogram_from_raw_audio(raw_audio, sr)
     # Convert to PyTorch tensor
     x = np.expand_dims(x, 0)
     x = torch.from_numpy(x)  # [1, freq_bins == NUM_FREQ_BINS, time_frames]
+    x = x.type(dtype=dtype)
     return x
 
 
 @MEMORY.cache
-def preprocess_image(path: str, img_height: Optional[int] = None) -> torch.Tensor:
-    x = Image.open(path).convert("L")  # Convert to grayscale
+def preprocess_image(
+    raw_image: Image.Image, img_height: Optional[int] = None, dtype: torch.dtype = torch.float32
+) -> torch.Tensor:
+    x = raw_image.convert("L")  # Convert to grayscale
     if img_height is not None:
         new_width = int(img_height * x.size[0] / x.size[1])  # Get width preserving aspect ratio
         x = x.resize((new_width, img_height))  # Resize
     x = TOTENSOR(x)  # Convert to tensor (normalizes to [0, 1])
+    x = x.type(dtype=dtype)  # Convert to specified dtype
     return x
 
 
-def pad_batch_inputs(x: torch.Tensor, pad_value: float = 0.0) -> torch.Tensor:
+def pad_batch_inputs(x: torch.Tensor, pad_value: float = 0.0, dtype: torch.dtype = torch.float32) -> torch.Tensor:
     max_width = max(x, key=lambda sample: sample.shape[2]).shape[2]
     max_height = max(x, key=lambda sample: sample.shape[1]).shape[1]
     x = torch.stack(
@@ -67,6 +73,7 @@ def pad_batch_inputs(x: torch.Tensor, pad_value: float = 0.0) -> torch.Tensor:
         ],
         dim=0,
     )
+    x = x.type(dtype=dtype)
     return x
 
 
@@ -89,7 +96,7 @@ def ar_batch_preparation_unimodal(
     """
     x, xl, y = zip(*batch)
     # Zero-pad inputs (images or audios) to maximum batch inputs shape
-    x = pad_batch_inputs(x, pad_value=pad_value)
+    x = pad_batch_inputs(x, pad_value=pad_value, dtype=torch.float32)
     xl = torch.tensor(xl, dtype=torch.int32)
     # Decoder input: transcript[:-1]
     y_in = [i[:-1] for i in y]
@@ -128,9 +135,9 @@ def ar_batch_preparation_multimodal(
     """
     xi, xli, xa, xla, y = zip(*batch)
     # Zero-pad inputs (images and audios) to maximum batch inputs shape
-    xi = pad_batch_inputs(xi, pad_value=1.0)
+    xi = pad_batch_inputs(xi, pad_value=1.0, dtype=torch.float32)
     xli = torch.tensor(xli, dtype=torch.int32)
-    xa = pad_batch_inputs(xa)
+    xa = pad_batch_inputs(xa, dtype=torch.float32)
     xla = torch.tensor(xla, dtype=torch.int32)
     # Decoder input: transcript[:-1]
     y_in = [i[:-1] for i in y]

@@ -10,7 +10,16 @@
   <img src='https://img.shields.io/badge/python-3.11.0-orange' alt='Python'>
   <img src='https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white' alt='PyTorch'>
   <img src='https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white' alt='Lightning'>
+  <img src='https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-white' alt='HuggingFace'>
   <img src='https://img.shields.io/static/v1?label=License&message=MIT&color=blue' alt='License'>
+</p>
+
+<p align="center">
+  <strong>GRANDSTAFF Collection</strong> 
+  </br>
+  <a href="https://huggingface.co/collections/PRAIG/omr-a2s-multimodal-grandstaff-68541370a4a8f1b983badbb3">
+    <img align="center" src="https://huggingface.co/datasets/huggingface/badges/resolve/main/dataset-on-hf-md.svg">
+  </a>
 </p>
 
 <p align='center'>
@@ -74,18 +83,30 @@ pip install -r requirements.txt
 
 ### Dataset
 
-We use the [**GRANDSTAFF**](https://sites.google.com/view/multiscore-project/datasets#h.n7ug4ausi7j) dataset.
+<h3 align='center'>🔔 The dataset is now available on <a href='https://huggingface.co/collections/PRAIG/omr-a2s-multimodal-grandstaff-68541370a4a8f1b983badbb3' target='_blank'>Hugging Face</a>.</h3>
 
-The GRANDSTAFF dataset contains 53&nbsp;882 single-system piano scores in common western modern notation, each represented by four files: (i) an image with the rendered score, (i) a distorted image, (iii) the musical symbolic representation of the incipit both in Humdrum **kern format and (iv) in an on-purpose simplified extension of this format called **bekern (*basic extended kern*).
+We use the [**GRANDSTAFF**](https://sites.google.com/view/multiscore-project/datasets#h.n7ug4ausi7j) dataset, which contains **53&nbsp;882 single-system piano scores in common western modern notation**. Each score is provided in four formats:
 
-To obtain the corresponding audio files, we must convert the provided Humdrum **kern representations to MIDI and then synthesize the MIDI data using FluidSynth.
+1. A rendered image of the score
+2. A distorted version of the image
+3. The symbolic musical representation in Humdrum **\*\*kern** format
+4. A simplified extension of this format called **\*\*bekern** (*basic extended kern*)
 
-The specific steps to follow are:
-1) Download a [General MIDI SounFont (sf2)](https://sites.google.com/site/soundfonts4u/#h.p_biJ8J359lC5W). We recommend downloading the [SGM-v2.01 soundfont](https://drive.google.com/file/d/12zSPpFucZXFg-svKeu6dm7-Fe5m20xgJ/view) as this code has been tested using this soundfont. **Place the sf2 file in the [`data`](data) folder.**
-2) Run the following script. 
-```bash 
-$ python -u data/prepare_dataset.py
-```
+To obtain the corresponding audio files, follow these steps:
+
+1. **Download a [General MIDI SoundFont (.sf2)](https://sites.google.com/site/soundfonts4u/#h.p_biJ8J359lC5W)**
+  
+    We recommend the [SGM-v2.01 SoundFont](https://drive.google.com/file/d/12zSPpFucZXFg-svKeu6dm7-Fe5m20xgJ/view), which is compatible with our code. **Place the `.sf2` file in the [`data`](data) folder.**
+
+2. **Run the dataset preparation script:**
+
+    This script will convert the provided Humdrum **\*\*kern** representations to MIDI and then synthesize the MIDI data using FluidSynth.
+
+    > ⚠️ You **do not need to run the script** if you just want to use the final dataset — it is now directly available on Hugging Face.
+
+    ```bash
+    python -u data/prepare_dataset.py
+    ```
 
 ### Experiments
 

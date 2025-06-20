@@ -41,10 +41,9 @@ class krnParser:
 
     # ---------------------------------------------------------------------------- AUXILIARY FUNCTIONS
 
-    def _readSrcFile(self, file_path: str) -> np.ndarray:
-        """Read polyphonic kern file and adequate the format for further processes."""
-        with open(file_path) as fin:
-            in_src = fin.read().splitlines()
+    def _readSrcFile(self, text: str) -> np.ndarray:
+        """Adequate a polyphonic Kern file content to the correct format for further processes."""
+        in_src = text.splitlines()
         return np.array(in_src)
 
     def _postprocessKernSequence(self, in_score: List[List[str]]) -> List[List[str]]:
@@ -93,9 +92,9 @@ class krnParser:
 
         return in_score
 
-    def _cleanKernFile(self, file_path: str) -> List[List[str]]:
+    def _cleanKernFile(self, text: str) -> List[List[str]]:
         """Convert complete kern sequence to CLEAN kern format."""
-        in_file = self._readSrcFile(file_path=file_path)
+        in_file = self._readSrcFile(text=text)
 
         # Processing individual voices
         out_score = []
@@ -166,17 +165,17 @@ class krnParser:
 
     # ---------------------------------------------------------------------------- ENCODE CALL
 
-    def encode(self, file_path: str) -> List[str]:
+    def encode(self, text: str) -> List[str]:
         """
-        Encode a polyphonic kern file to a list of tokens.
+        Encode a polyphonic kern file content to a list of tokens.
 
         Args:
-            file_path (str): Path to the file to be encoded.
+            text (str): The content of the polyphonic kern file.
 
         Returns:
             List[str]: List of tokens representing the encoded file.
         """
-        y_clean = self._cleanKernFile(file_path)
+        y_clean = self._cleanKernFile(text)
         y_coded = []
 
         for i, voices in enumerate(y_clean):

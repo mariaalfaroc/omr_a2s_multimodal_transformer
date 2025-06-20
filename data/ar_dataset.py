@@ -1,13 +1,14 @@
 import json
 import math
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
+from datasets import load_dataset
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
-from data.encoding import krnParser
+from data.encoding import krnParser, ENCODING_OPTIONS
 from data.prepare_dataset import GRANDSTAFF_PATH
 from data.preprocessing import (
     ar_batch_preparation_audio,
@@ -31,6 +32,8 @@ DATASETS = [
     "mozart",
     "scarlatti-d",
 ]
+SPLITS = ["train", "val", "test"]
+MODALITIES = ["audio", "image", "both"]
 
 
 class ARDataModule(LightningDataModule):
@@ -223,40 +226,69 @@ class ARDataset(Dataset):
         assert self.ds_name in DATASETS, f"Invalid dataset name: {self.ds_name}"
 
         # Check partition type
-        assert self.partition_type in [
-            "train",
-            "val",
-            "test",
-        ], f"Invalid partition type: {self.partition_type}"
+        assert self.partition_type in SPLITS, f"Invalid partition type: {self.partition_type}"
 
-        # Set folder paths and input extensions
-        self.ds_folder_path = os.path.join(GRANDSTAFF_PATH, self.ds_name)
-        self.audio_folder_path = os.path.join(self.ds_folder_path, "wav")
-        self.image_folder_path = (
-            os.path.join(self.ds_folder_path, "img_distorted")
-            if self.use_distorted_images
-            else os.path.join(self.ds_folder_path, "img")
-        )
-        self.img_extension = "_distorted.jpg" if self.use_distorted_images else ".jpg"
-        self.transcript_folder_path = (
-            os.path.join(self.ds_folder_path, "bekrn")
-            if self.krn_parser.encoding == "bekern"
-            else os.path.join(self.ds_folder_path, "krn")
-        )
-        self.transcript_extension = ".bekrn" if self.krn_parser.encoding == "bekern" else ".krn"
+        # Load dataset
+        assert self.input_modality in MODALITIES, f"Invalid input_modality: {self.input_modality}"
+        self.ds = load_dataset(f"PRAIG/{self.ds_name}-grandstaff-multimodal", split=self.partition_type)
 
-        # Get audios or images or both and transcripts files
-        # X = (list of images_paths, list of audios_paths); Y is a list of transcripts_paths
-        # images_path or audios_path is None if input_modality != "image" or "audio"
-        assert self.input_modality in [
-            "image",
-            "audio",
-            "both",
-        ], f"Invalid input_modality: {self.input_modality}"
-        (
-            self.X,
-            self.Y,
-        ) = self.get_inputs_and_transcripts_files()
+        # Get the correct dataset features
+        if self.input_modality == "audio":
+            print(f"Using audio modality for {self.ds_name} dataset.")
+            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
+            remove_columns += ["image", "image_distorted"]
+            print(f"Removing columns: {remove_columns}")
+            self.ds = self.ds.map(
+                lambda x: {"audio": x["audio"], "transcript": x[self.krn_parser.encoding]},
+                remove_columns=remove_columns,
+            )
+            print(f"Columns: {self.ds.column_names}")
+
+        elif self.input_modality == "image":
+            print(f"Using image modality for {self.ds_name} dataset.")
+            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
+            remove_columns += ["audio"]
+            # Check if distorted images are used
+            image_key = None
+            if self.use_distorted_images:
+                remove_columns += ["image"]
+                image_key = "image_distorted"
+            else:
+                remove_columns += ["image_distorted"]
+                image_key = "image"
+            print(f"Removing columns: {remove_columns}")
+            self.ds = self.ds.map(
+                lambda x: {
+                    "image": x[image_key],
+                    "transcript": x[self.krn_parser.encoding],
+                },
+                remove_columns=remove_columns,
+            )
+            print(f"Columns: {self.ds.column_names}")
+
+        elif self.input_modality == "both":
+            print(f"Using both audio and image modalities for {self.ds_name} dataset.")
+            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
+            # Check if distorted images are used
+            image_key = None
+            if self.use_distorted_images:
+                remove_columns += ["image"]
+                image_key = "image_distorted"
+            else:
+                remove_columns += ["image_distorted"]
+                image_key = "image"
+            print(f"Removing columns: {remove_columns}")
+            self.ds = self.ds.map(
+                lambda x: {
+                    "audio": x["audio"],
+                    "image": x[image_key],
+                    "transcript": x[self.krn_parser.encoding],
+                },
+                remove_columns=remove_columns,
+            )
+            print(f"Columns: {self.ds.column_names}")
+        else:
+            raise ValueError(f"Invalid input_modality: {self.input_modality}. Must be one of {MODALITIES}.")
 
         # Check and retrieve vocabulary
         vocab_folder = os.path.join(GRANDSTAFF_PATH, "vocabs")
@@ -268,7 +300,8 @@ class ARDataset(Dataset):
         # Check and retrive max lengths
         max_lens_folder = os.path.join(GRANDSTAFF_PATH, "max_lens")
         os.makedirs(max_lens_folder, exist_ok=True)
-        max_lens_name = f"{vocab_name}_{krn_encoding}.json"
+        max_lens_name = "ImgDist" if self.use_distorted_images else ""
+        max_lens_name += vocab_name
         self.max_lens_path = os.path.join(max_lens_folder, max_lens_name)
         max_lens = self.check_and_retrieve_max_lens()
         self.max_seq_len = max_lens["max_seq_len"]
@@ -276,47 +309,6 @@ class ARDataset(Dataset):
         self.max_image_width = max_lens["max_image_width"]
         self.max_audio_height = max_lens["max_audio_height"]
         self.max_audio_width = max_lens["max_audio_width"]
-
-    def get_inputs_and_transcripts_files(
-        self,
-    ) -> Tuple[Tuple[Optional[List[str]], Optional[List[str]]], List[str]]:
-        """
-        Returns a tuple of two elements:
-            - The first element is a tuple of two lists: the first list contains the paths of the images or None if input_modality == "audio"
-            the second list contains the paths of the audios or None if input_modality == "image". Both lists are present if input_modality == "both".
-            - The second element is a list of the paths of the transcripts.
-        """
-        images = []
-        audios = []
-        transcripts = []
-        partition_file = os.path.join(GRANDSTAFF_PATH, "partitions", self.ds_name, self.partition_type + ".txt")
-        if self.ds_name == "grandstaff":
-            with open(partition_file, "r") as file:
-                for s in file.read().splitlines():
-                    composer, s = s.strip().split("\t")
-                    current_ds_folder_path = os.path.join(GRANDSTAFF_PATH, composer)
-                    image_folder_path = self.image_folder_path.replace(self.ds_folder_path, current_ds_folder_path)
-                    audio_folder_path = self.audio_folder_path.replace(self.ds_folder_path, current_ds_folder_path)
-                    transcripts_folder_path = self.transcript_folder_path.replace(
-                        self.ds_folder_path, current_ds_folder_path
-                    )
-                    images.append(os.path.join(image_folder_path, s + self.img_extension))
-                    audios.append(os.path.join(audio_folder_path, s + ".wav"))
-                    transcripts.append(os.path.join(transcripts_folder_path, s + self.transcript_extension))
-        else:
-            with open(partition_file, "r") as file:
-                for s in file.read().splitlines():
-                    s = s.strip()
-                    images.append(os.path.join(self.image_folder_path, s + self.img_extension))
-                    audios.append(os.path.join(self.audio_folder_path, s + ".wav"))
-                    transcripts.append(os.path.join(self.transcript_folder_path, s + self.transcript_extension))
-        if self.input_modality == "image":
-            return (images, None), transcripts
-        elif self.input_modality == "audio":
-            return (None, audios), transcripts
-        else:
-            # self.input_modality == "both"
-            return (images, audios), transcripts
 
     def check_and_retrieve_vocabulary(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         w2i = {}
@@ -335,17 +327,14 @@ class ARDataset(Dataset):
 
     def make_vocabulary(self) -> Tuple[Dict[str, int], Dict[int, str]]:
         # Use the same vocabulary for the whole GRANDSTAFF collection
-        vocab = []
-        for foldername, subfolders, filenames in os.walk(GRANDSTAFF_PATH):
-            for filename in filenames:
-                if filename.startswith("."):
-                    continue
+        full_ds = load_dataset("PRAIG/grandstaff-grandstaff-multimodal")
 
-                if filename.endswith(self.transcript_extension):
-                    transcript = self.krn_parser.encode(file_path=os.path.join(foldername, filename))
-                    vocab.extend(transcript)
-                else:
-                    continue
+        vocab = []
+        for partition_type in SPLITS:
+            for text in full_ds[partition_type][self.krn_parser.encoding]:
+                transcript = self.krn_parser.encode(text=text)
+                vocab.extend(transcript)
+        vocab = sorted(set(vocab))
 
         vocab = [SOS_TOKEN, EOS_TOKEN] + vocab
         vocab = sorted(set(vocab))
@@ -381,29 +370,34 @@ class ARDataset(Dataset):
         max_seq_len = 0
         max_image_height, max_image_width = 0, 0
         max_audio_height, max_audio_width = 0, 0
-        for foldername, subfolders, filenames in os.walk(GRANDSTAFF_PATH):
-            for filename in filenames:
-                if filename.startswith("."):
-                    continue
 
-                if filename.endswith(self.transcript_extension):
-                    transcript = self.krn_parser.encode(file_path=os.path.join(foldername, filename))
-                    max_seq_len = max(max_seq_len, len(transcript) + 1)  # +1 for EOS token
-                elif filename.endswith(self.img_extension):
-                    if "distorted" in filename and not self.use_distorted_images:
-                        continue
-                    image = preprocess_image(
-                        path=os.path.join(foldername, filename),
-                        img_height=self.img_height,
-                    )
-                    max_image_height = max(max_image_height, image.shape[1])
-                    max_image_width = max(max_image_width, image.shape[2])
-                elif filename.endswith(".wav"):
-                    audio = preprocess_audio(path=os.path.join(foldername, filename))
-                    max_audio_height = max(max_audio_height, audio.shape[1])
-                    max_audio_width = max(max_audio_width, audio.shape[2])
-                else:
-                    continue
+        full_ds = load_dataset("PRAIG/grandstaff-grandstaff-multimodal")
+        for partition_type in SPLITS:
+            for sample in full_ds[partition_type]:
+                # Max transcript length
+                transcript = sample[self.krn_parser.encoding]
+                text = self.krn_parser.encode(text=transcript)
+                max_seq_len = max(max_seq_len, len(text) + 1)  # +1 for EOS token
+
+                # Max audio size
+                raw_audio = sample["audio"]
+                audio = preprocess_audio(
+                    raw_audio=raw_audio["array"],
+                    sr=raw_audio["sampling_rate"],
+                    dtype=torch.float32,
+                )
+                max_audio_height = max(max_audio_height, audio.shape[1])
+                max_audio_width = max(max_audio_width, audio.shape[2])
+
+                # Max image size
+                raw_image = sample["image_distorted"] if self.use_distorted_images else sample["image"]
+                image = preprocess_image(
+                    raw_image=raw_image,
+                    img_height=self.img_height,
+                    dtype=torch.float32,
+                )
+                max_image_height = max(max_image_height, image.shape[1])
+                max_image_width = max(max_image_width, image.shape[2])
 
         return {
             "max_seq_len": max_seq_len,
@@ -416,26 +410,33 @@ class ARDataset(Dataset):
     # ---------------------------------------------------------------------------- GETTERS
 
     def __len__(self) -> int:
-        return len(self.Y)
+        return len(self.ds)
 
     def __getitemimage__(self, idx: int):
-        x = preprocess_image(path=self.X[0][idx], img_height=self.img_height)
-        y = self.preprocess_transcript(path=self.Y[idx])
+        sample = self.ds[idx]
+        x = preprocess_image(raw_image=sample["image"], img_height=self.img_height, dtype=torch.float32)
+        y = self.preprocess_transcript(text=sample["transcript"])
         if self.partition_type == "train":
             return x, self.get_number_of_frames(x), y
         return x, y
 
     def __getitemaudio__(self, idx: int):
-        x = preprocess_audio(path=self.X[1][idx])
-        y = self.preprocess_transcript(path=self.Y[idx])
+        sample = self.ds[idx]
+        x = preprocess_audio(
+            raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32
+        )
+        y = self.preprocess_transcript(text=sample["transcript"])
         if self.partition_type == "train":
             return x, self.get_number_of_frames(x), y
         return x, y
 
     def __getitemboth__(self, idx: int):
-        xi = preprocess_image(path=self.X[0][idx], img_height=self.img_height)
-        xa = preprocess_audio(path=self.X[1][idx])
-        y = self.preprocess_transcript(path=self.Y[idx])
+        sample = self.ds[idx]
+        xi = preprocess_image(raw_image=sample["image"], img_height=self.img_height, dtype=torch.float32)
+        xa = preprocess_audio(
+            raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32
+        )
+        y = self.preprocess_transcript(text=sample["transcript"])
         if self.partition_type == "train":
             return (
                 xi,
@@ -449,8 +450,8 @@ class ARDataset(Dataset):
     def __getitem__(self, idx: int):
         return getattr(self, "__getitem" + self.input_modality + "__")(idx)
 
-    def preprocess_transcript(self, path: str) -> torch.Tensor:
-        y = self.krn_parser.encode(file_path=path)
+    def preprocess_transcript(self, text: str) -> torch.Tensor:
+        y = self.krn_parser.encode(text=text)
         y = [SOS_TOKEN] + y + [EOS_TOKEN]
         y = [self.w2i[w] for w in y]
         return torch.tensor(y, dtype=torch.int64)
