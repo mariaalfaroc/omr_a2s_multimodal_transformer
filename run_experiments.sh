@@ -15,8 +15,10 @@ for input_modality in image audio both; do
                 if [ $train_ds != $test_ds ]; then
                     if [ $input_modality == "image" ]; then
                         checkpoint_path=weights/$train_ds/image_distorted_kern.ckpt
-                    else
+                    elif [ $input_modality == "audio" ]; then
                         checkpoint_path=weights/$train_ds/audio_kern.ckpt
+                    else
+                        checkpoint_path=weights/$train_ds/both_"$mixer_type"_kern.ckpt
                     fi
                     python -u test.py --ds_name $test_ds --krn_encoding kern --input_modality $input_modality --checkpoint_path $checkpoint_path --use_distorted_images
                 fi

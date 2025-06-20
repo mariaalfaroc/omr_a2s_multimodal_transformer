@@ -26,9 +26,7 @@ class PositionalEncoding2D(nn.Module):
         dropout_p (float, optional): Dropout probability. Defaults to 0.1.
     """
 
-    def __init__(
-        self, num_channels: int, max_height: int, max_width: int, dropout_p: float = 0.1
-    ):
+    def __init__(self, num_channels: int, max_height: int, max_width: int, dropout_p: float = 0.1):
         super(PositionalEncoding2D, self).__init__()
         self.dropout = nn.Dropout(p=dropout_p)
 
@@ -37,18 +35,10 @@ class PositionalEncoding2D(nn.Module):
         den = torch.pow(10000, torch.arange(0, num_channels // 2, 2) / num_channels)
 
         pe = torch.zeros(1, max_height, max_width, num_channels)
-        pe[0, :, :, 0 : num_channels // 2 : 2] = (
-            torch.sin(pos_w / den).unsqueeze(0).repeat(max_height, 1, 1)
-        )
-        pe[0, :, :, 1 : num_channels // 2 : 2] = (
-            torch.cos(pos_w / den).unsqueeze(0).repeat(max_height, 1, 1)
-        )
-        pe[0, :, :, num_channels // 2 :: 2] = (
-            torch.sin(pos_h / den).unsqueeze(1).repeat(1, max_width, 1)
-        )
-        pe[0, :, :, (num_channels // 2) + 1 :: 2] = (
-            torch.cos(pos_h / den).unsqueeze(1).repeat(1, max_width, 1)
-        )
+        pe[0, :, :, 0 : num_channels // 2 : 2] = torch.sin(pos_w / den).unsqueeze(0).repeat(max_height, 1, 1)
+        pe[0, :, :, 1 : num_channels // 2 : 2] = torch.cos(pos_w / den).unsqueeze(0).repeat(max_height, 1, 1)
+        pe[0, :, :, num_channels // 2 :: 2] = torch.sin(pos_h / den).unsqueeze(1).repeat(1, max_width, 1)
+        pe[0, :, :, (num_channels // 2) + 1 :: 2] = torch.cos(pos_h / den).unsqueeze(1).repeat(1, max_width, 1)
         pe = pe.permute(0, 3, 1, 2).contiguous()
         self.register_buffer("pe", pe)
 
@@ -131,8 +121,7 @@ class Transformer(LightningModule):
         tgt_size = [1, self.max_seq_len]
         memory_size = [
             1,
-            math.ceil(self.max_input_height / HEIGHT_REDUCTION)
-            * math.ceil(self.max_input_width / WIDTH_REDUCTION),
+            math.ceil(self.max_input_height / HEIGHT_REDUCTION) * math.ceil(self.max_input_width / WIDTH_REDUCTION),
             256,
         ]
         memory_len_size = [1]
@@ -149,9 +138,7 @@ class Transformer(LightningModule):
             amsgrad=False,
         )
 
-    def forward(
-        self, x: torch.Tensor, xl: torch.Tensor, y_in: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, xl: torch.Tensor, y_in: torch.Tensor) -> torch.Tensor:
         # Encoder
         x = self.encoder(x=x)
         # Prepare for decoder
@@ -168,10 +155,7 @@ class Transformer(LightningModule):
         y_errored = y.clone()
         for i in range(y_errored.size(0)):
             for j in range(y_errored.size(1)):
-                if (
-                    random.random() < self.teacher_forcing_prob
-                    and y[i, j] != self.padding_idx
-                ):
+                if random.random() < self.teacher_forcing_prob and y[i, j] != self.padding_idx:
                     y_errored[i, j] = random.randint(0, len(self.w2i) - 1)
         return y_errored
 
@@ -206,9 +190,7 @@ class Transformer(LightningModule):
             if y_out_hat_word == EOS_TOKEN:
                 break
 
-            y_in = torch.cat(
-                [y_in, torch.tensor([[y_out_hat_token]]).long().to(x.device)], dim=1
-            )
+            y_in = torch.cat([y_in, torch.tensor([[y_out_hat_token]]).long().to(x.device)], dim=1)
 
         # Decoded ground truth
         y = [self.ytest_i2w[i.item()] for i in y[0][1:]]  # Remove SOS_TOKEN
@@ -221,9 +203,7 @@ class Transformer(LightningModule):
         return self.validation_step(batch, batch_idx)
 
     @torch.no_grad()
-    def on_validation_epoch_end(
-        self, name: str = "val", print_random_samples: bool = False
-    ):
+    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False):
         metrics = compute_metrics(y_true=self.Y, y_pred=self.YHat)
         for k, v in metrics.items():
             self.log(f"{name}_{k}", v, prog_bar=True, logger=True, on_epoch=True)
@@ -244,9 +224,7 @@ class Transformer(LightningModule):
     ##### FOR LATE MULTIMODAL FUSION:
 
     @torch.no_grad()
-    def get_pred_seq_and_pred_prob_seq(
-        self, x: torch.Tensor
-    ) -> Tuple[List[str], List[float]]:
+    def get_pred_seq_and_pred_prob_seq(self, x: torch.Tensor) -> Tuple[List[str], List[float]]:
         """
         Returns the predicted sequence and the probability of each predicted token for a given input.
         Useful for Smith-Waterman late-multimodal fusion.
@@ -279,9 +257,7 @@ class Transformer(LightningModule):
             if y_out_hat_word == EOS_TOKEN:
                 break
 
-            y_in = torch.cat(
-                [y_in, y_out_hat_token.unsqueeze(0).long().to(x.device)], dim=1
-            )
+            y_in = torch.cat([y_in, y_out_hat_token.unsqueeze(0).long().to(x.device)], dim=1)
 
         return yhat, yhat_prob
 
@@ -344,9 +320,7 @@ class CrossAttention(nn.Module):
             attn_mask = None
 
         # Apply multi-head attention
-        attn_output, attn_weights = self.attention(
-            query=query, key=key_value, value=key_value, attn_mask=attn_mask
-        )
+        attn_output, attn_weights = self.attention(query=query, key=key_value, value=key_value, attn_mask=attn_mask)
         # attn_output.shape = [B, len_a, feature_dim]
         # attn_weights.shape = [B, len_a, len_b]
 
@@ -487,12 +461,8 @@ class MultimodalTransformer(LightningModule):
         tgt_size = [1, self.max_seq_len]
         memory_size = [
             1,
-            math.ceil(
-                max(self.max_img_height, self.max_audio_height) / HEIGHT_REDUCTION
-            )
-            * math.ceil(
-                max(self.max_img_width, self.max_audio_width) / WIDTH_REDUCTION
-            ),
+            math.ceil(max(self.max_img_height, self.max_audio_height) / HEIGHT_REDUCTION)
+            * math.ceil(max(self.max_img_width, self.max_audio_width) / WIDTH_REDUCTION),
             256,
         ]
         memory_len_size = [1]
@@ -626,14 +596,10 @@ class MultimodalTransformer(LightningModule):
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         xi, xa, y = batch
-        assert (
-            xi.size(0) == xa.size(0) == y.size(0) == 1
-        ), "Inference only supports batch_size = 1"
+        assert xi.size(0) == xa.size(0) == y.size(0) == 1, "Inference only supports batch_size = 1"
 
         # Encoder
-        x, _ = self.encoder_forward(
-            xi=xi, xa=xa, xli=None, xla=None, apply_teacher_forcing_modality=False
-        )
+        x, _ = self.encoder_forward(xi=xi, xa=xa, xli=None, xla=None, apply_teacher_forcing_modality=False)
         # Autoregressive decoding
         y_in = torch.tensor([self.w2i[SOS_TOKEN]]).unsqueeze(0).long().to(x.device)
         yhat = []
@@ -646,9 +612,7 @@ class MultimodalTransformer(LightningModule):
             if y_out_hat_word == EOS_TOKEN:
                 break
 
-            y_in = torch.cat(
-                [y_in, torch.tensor([[y_out_hat_token]]).long().to(x.device)], dim=1
-            )
+            y_in = torch.cat([y_in, torch.tensor([[y_out_hat_token]]).long().to(x.device)], dim=1)
 
         # Decoded ground truth
         y = [self.ytest_i2w[i.item()] for i in y[0][1:]]  # Remove SOS_TOKEN
@@ -661,9 +625,7 @@ class MultimodalTransformer(LightningModule):
         return self.validation_step(batch, batch_idx)
 
     @torch.no_grad()
-    def on_validation_epoch_end(
-        self, name: str = "val", print_random_samples: bool = False
-    ):
+    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False):
         metrics = compute_metrics(y_true=self.Y, y_pred=self.YHat)
         for k, v in metrics.items():
             self.log(f"{name}_{k}", v, prog_bar=True, logger=True, on_epoch=True)

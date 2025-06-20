@@ -24,9 +24,9 @@ class krnParser:
 
     def __init__(self, encoding: str = "bekern"):
         # Check encoding
-        assert (
-            encoding in ENCODING_OPTIONS
-        ), f"You must chose one of the possible encoding options: {','.join(ENCODING_OPTIONS)}"
+        assert encoding in ENCODING_OPTIONS, (
+            f"You must chose one of the possible encoding options: {','.join(ENCODING_OPTIONS)}"
+        )
 
         # Attributes
         self.encoding = encoding
@@ -41,10 +41,9 @@ class krnParser:
 
     # ---------------------------------------------------------------------------- AUXILIARY FUNCTIONS
 
-    def _readSrcFile(self, file_path: str) -> np.ndarray:
-        """Read polyphonic kern file and adequate the format for further processes."""
-        with open(file_path) as fin:
-            in_src = fin.read().splitlines()
+    def _readSrcFile(self, text: str) -> np.ndarray:
+        """Adequate a polyphonic Kern file content to the correct format for further processes."""
+        in_src = text.splitlines()
         return np.array(in_src)
 
     def _postprocessKernSequence(self, in_score: List[List[str]]) -> List[List[str]]:
@@ -55,18 +54,14 @@ class krnParser:
             np.where(
                 np.array(
                     [
-                        ("*" in line)
-                        and (self.open_spine not in line)
-                        and (self.close_spine not in line)
+                        ("*" in line) and (self.open_spine not in line) and (self.close_spine not in line)
                         for line in in_score
                     ]
                 )
                 is True
             )[0]
         )
-        positions_voices = [
-            np.where(np.array(in_score[idx]) == "*")[0] for idx in positions_elements
-        ]
+        positions_voices = [np.where(np.array(in_score[idx]) == "*")[0] for idx in positions_elements]
 
         # For each position, we retrieve the last explicit clef symbol and include it in the stream
         for it_position in range(len(positions_elements)):
@@ -84,16 +79,10 @@ class krnParser:
                     pass
                 pass
 
-                previous_elements = [
-                    line[position_voice]
-                    for line in in_score[it_reference:position_element]
-                ]
+                previous_elements = [line[position_voice] for line in in_score[it_reference:position_element]]
                 try:
                     new_element = in_score[
-                        it_reference
-                        + max(np.where(np.char.startswith(previous_elements, "*clef")))[
-                            0
-                        ]
+                        it_reference + max(np.where(np.char.startswith(previous_elements, "*clef")))[0]
                     ][position_voice]
                 except Exception:
                     new_element = in_score[position_element][position_voice - 1]
@@ -103,9 +92,9 @@ class krnParser:
 
         return in_score
 
-    def _cleanKernFile(self, file_path: str) -> List[List[str]]:
+    def _cleanKernFile(self, text: str) -> List[List[str]]:
         """Convert complete kern sequence to CLEAN kern format."""
-        in_file = self._readSrcFile(file_path=file_path)
+        in_file = self._readSrcFile(text=text)
 
         # Processing individual voices
         out_score = []
@@ -117,11 +106,7 @@ class krnParser:
             current_step = []
             for single_voice in voices:
                 try:
-                    current_step.append(
-                        " ".join(
-                            [self._cleanKernToken(u) for u in single_voice.split(" ")]
-                        )
-                    )
+                    current_step.append(" ".join([self._cleanKernToken(u) for u in single_voice.split(" ")]))
                 except Exception:
                     # self._cleanKernToken(u) is None
                     pass
@@ -140,22 +125,16 @@ class krnParser:
 
         in_token = in_token.replace("·", "")  # Remove dot separator in bekern
 
-        if any(
-            [u in in_token for u in self.reserved_words]
-        ):  # Relevant reserved tokens
+        if any([u in in_token for u in self.reserved_words]):  # Relevant reserved tokens
             out_token = in_token
 
         elif in_token == self.reserved_dot:  # Case when using '.' for sync. voices
             out_token = self.reserved_dot_EncodedCharacter
 
-        elif (
-            in_token.strip() == self.clef_change_other_voices
-        ):  # Clef change in other voices
+        elif in_token.strip() == self.clef_change_other_voices:  # Clef change in other voices
             out_token = in_token
 
-        elif (
-            in_token.strip() == self.open_spine or in_token.strip() == self.close_spine
-        ):  # Open/close spine
+        elif in_token.strip() == self.open_spine or in_token.strip() == self.close_spine:  # Open/close spine
             out_token = in_token
 
         elif any([in_token.startswith(u) for u in self.comment_symbols]):  # Comments
@@ -173,34 +152,30 @@ class krnParser:
             elif "r" in in_token:
                 out_token = in_token.split("r")[0] + "r"  # Rest
             else:
-                out_token = re.findall(r"\d+[.]*[a-gA-G]+[n#-]*", in_token)[
-                    0
-                ]  # Music note
+                out_token = re.findall(r"\d+[.]*[a-gA-G]+[n#-]*", in_token)[0]  # Music note
                 if "[" in in_token:
                     out_token += "["
                 if "]" in in_token:
                     out_token += "]"
 
         elif "q" in in_token:
-            out_token = re.findall(r"\d*[a-gA-G]+[n#-]*[q]+", in_token)[
-                0
-            ]  # Music note with q
+            out_token = re.findall(r"\d*[a-gA-G]+[n#-]*[q]+", in_token)[0]  # Music note with q
 
         return out_token
 
     # ---------------------------------------------------------------------------- ENCODE CALL
 
-    def encode(self, file_path: str) -> List[str]:
+    def encode(self, text: str) -> List[str]:
         """
-        Encode a polyphonic kern file to a list of tokens.
+        Encode a polyphonic kern file content to a list of tokens.
 
         Args:
-            file_path (str): Path to the file to be encoded.
+            text (str): The content of the polyphonic kern file.
 
         Returns:
             List[str]: List of tokens representing the encoded file.
         """
-        y_clean = self._cleanKernFile(file_path)
+        y_clean = self._cleanKernFile(text)
         y_coded = []
 
         for i, voices in enumerate(y_clean):

@@ -9,16 +9,10 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
     def modify_model_checkpoint_callback(ckpt: dict, modality: str = "image_distorted"):
         ckpt_key = [k for k in ckpt["callbacks"].keys() if "ModelCheckpoint" in k][0]
         org_path = ckpt["callbacks"][ckpt_key]["best_model_path"]
-        new_path = (
-            os.path.splitext(org_path)[0]
-            + f"_only_{modality}"
-            + os.path.splitext(org_path)[1]
-        )
+        new_path = os.path.splitext(org_path)[0] + f"_only_{modality}" + os.path.splitext(org_path)[1]
         ckpt["callbacks"][ckpt_key]["best_model_path"] = new_path
         ckpt["callbacks"][ckpt_key]["kth_best_model_path"] = new_path
-        ckpt["callbacks"][ckpt_key]["best_k_models"] = {
-            new_path: ckpt["callbacks"][ckpt_key]["best_model_score"]
-        }
+        ckpt["callbacks"][ckpt_key]["best_k_models"] = {new_path: ckpt["callbacks"][ckpt_key]["best_model_score"]}
         return ckpt
 
     def modify_hyper_parameters(ckpt: dict, modality: str = "image"):
@@ -28,12 +22,8 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
             del ckpt["hyper_parameters"]["max_audio_height"]
             del ckpt["hyper_parameters"]["max_audio_width"]
 
-            ckpt["hyper_parameters"]["max_input_height"] = ckpt["hyper_parameters"][
-                "max_img_height"
-            ]
-            ckpt["hyper_parameters"]["max_input_width"] = ckpt["hyper_parameters"][
-                "max_img_width"
-            ]
+            ckpt["hyper_parameters"]["max_input_height"] = ckpt["hyper_parameters"]["max_img_height"]
+            ckpt["hyper_parameters"]["max_input_width"] = ckpt["hyper_parameters"]["max_img_width"]
 
             del ckpt["hyper_parameters"]["max_img_height"]
             del ckpt["hyper_parameters"]["max_img_width"]
@@ -41,12 +31,8 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
             del ckpt["hyper_parameters"]["max_img_height"]
             del ckpt["hyper_parameters"]["max_img_width"]
 
-            ckpt["hyper_parameters"]["max_input_height"] = ckpt["hyper_parameters"][
-                "max_audio_height"
-            ]
-            ckpt["hyper_parameters"]["max_input_width"] = ckpt["hyper_parameters"][
-                "max_audio_width"
-            ]
+            ckpt["hyper_parameters"]["max_input_height"] = ckpt["hyper_parameters"]["max_audio_height"]
+            ckpt["hyper_parameters"]["max_input_width"] = ckpt["hyper_parameters"]["max_audio_width"]
 
             del ckpt["hyper_parameters"]["max_audio_height"]
             del ckpt["hyper_parameters"]["max_audio_width"]
@@ -111,11 +97,7 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
     img_model = modify_model_checkpoint_callback(img_model, modality="image_distorted")
     img_model = modify_hyper_parameters(img_model, modality="image")
     img_model = modify_state_dict(img_model, modality="image")
-    img_ckp_path = (
-        os.path.splitext(ckpt_path)[0]
-        + "_only_image_distorted"
-        + os.path.splitext(ckpt_path)[1]
-    )
+    img_ckp_path = os.path.splitext(ckpt_path)[0] + "_only_image_distorted" + os.path.splitext(ckpt_path)[1]
     save_model(img_model, img_ckp_path)
 
     # Audio model
@@ -123,9 +105,7 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
     audio_model = modify_model_checkpoint_callback(audio_model, modality="audio")
     audio_model = modify_hyper_parameters(audio_model, modality="audio")
     audio_model = modify_state_dict(audio_model, modality="audio")
-    audio_ckp_path = (
-        os.path.splitext(ckpt_path)[0] + "_only_audio" + os.path.splitext(ckpt_path)[1]
-    )
+    audio_ckp_path = os.path.splitext(ckpt_path)[0] + "_only_audio" + os.path.splitext(ckpt_path)[1]
     save_model(audio_model, audio_ckp_path)
 
     print(f"Image model saved at: {img_ckp_path}")

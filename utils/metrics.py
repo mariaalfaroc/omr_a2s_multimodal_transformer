@@ -198,9 +198,7 @@ def compute_mv2h_metrics(
                 reference_file = Music.from_file(reference_txt_file)
 
             # Processing prediction
-            predVoice_exists = divide_voice(
-                "predKern.krn", "predVoiceKern.krn", n_voices
-            )
+            predVoice_exists = divide_voice("predKern.krn", "predVoiceKern.krn", n_voices)
             if predVoice_exists:
                 predicted_midi_file = krn2midi("predVoiceKern.krn")  # To MIDI
                 predicted_txt_file = midi2txt(predicted_midi_file)  # To TXT
