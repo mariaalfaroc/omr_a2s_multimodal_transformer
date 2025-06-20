@@ -231,62 +231,45 @@ class ARDataset(Dataset):
         # Load dataset
         assert self.input_modality in MODALITIES, f"Invalid input_modality: {self.input_modality}"
         self.ds = load_dataset(f"PRAIG/{self.ds_name}-grandstaff-multimodal", split=self.partition_type)
+        # Rename correct encoding column to transcript
+        self.ds = self.ds.rename_column(self.krn_parser.encoding, "transcript")
+        # Remove all other encoding options
+        remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
 
         # Get the correct dataset features
         if self.input_modality == "audio":
             print(f"Using audio modality for {self.ds_name} dataset.")
-            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
+            # Remove also all image columns
             remove_columns += ["image", "image_distorted"]
             print(f"Removing columns: {remove_columns}")
-            self.ds = self.ds.map(
-                lambda x: {"audio": x["audio"], "transcript": x[self.krn_parser.encoding]},
-                remove_columns=remove_columns,
-            )
+            self.ds = self.ds.remove_columns(remove_columns)
             print(f"Columns: {self.ds.column_names}")
 
-        elif self.input_modality == "image":
-            print(f"Using image modality for {self.ds_name} dataset.")
-            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
-            remove_columns += ["audio"]
+        elif self.input_modality in ["image", "both"]:
+            if self.input_modality == "image":
+                print(f"Using image modality for {self.ds_name} dataset.")
+                # Remove also all audio columns
+                remove_columns += ["audio"]
+            elif self.input_modality == "both":
+                print(f"Using both audio and image modalities for {self.ds_name} dataset.")
+            else:
+                raise ValueError(f"Invalid input_modality: {self.input_modality}. Must be 'image' or 'both'.")
+            
             # Check if distorted images are used
             image_key = None
             if self.use_distorted_images:
+                print("Using distorted images.")
                 remove_columns += ["image"]
                 image_key = "image_distorted"
             else:
                 remove_columns += ["image_distorted"]
                 image_key = "image"
             print(f"Removing columns: {remove_columns}")
-            self.ds = self.ds.map(
-                lambda x: {
-                    "image": x[image_key],
-                    "transcript": x[self.krn_parser.encoding],
-                },
-                remove_columns=remove_columns,
-            )
+            self.ds = self.ds.remove_columns(remove_columns)
+            # Image column should always be named "image"
+            self.ds = self.ds.rename_column(image_key, "image")
             print(f"Columns: {self.ds.column_names}")
 
-        elif self.input_modality == "both":
-            print(f"Using both audio and image modalities for {self.ds_name} dataset.")
-            remove_columns = [e for e in ENCODING_OPTIONS if e != self.krn_parser.encoding]
-            # Check if distorted images are used
-            image_key = None
-            if self.use_distorted_images:
-                remove_columns += ["image"]
-                image_key = "image_distorted"
-            else:
-                remove_columns += ["image_distorted"]
-                image_key = "image"
-            print(f"Removing columns: {remove_columns}")
-            self.ds = self.ds.map(
-                lambda x: {
-                    "audio": x["audio"],
-                    "image": x[image_key],
-                    "transcript": x[self.krn_parser.encoding],
-                },
-                remove_columns=remove_columns,
-            )
-            print(f"Columns: {self.ds.column_names}")
         else:
             raise ValueError(f"Invalid input_modality: {self.input_modality}. Must be one of {MODALITIES}.")
 
@@ -300,7 +283,7 @@ class ARDataset(Dataset):
         # Check and retrive max lengths
         max_lens_folder = os.path.join(GRANDSTAFF_PATH, "max_lens")
         os.makedirs(max_lens_folder, exist_ok=True)
-        max_lens_name = "ImgDist" if self.use_distorted_images else ""
+        max_lens_name = "ImgDist_" if self.use_distorted_images else ""
         max_lens_name += vocab_name
         self.max_lens_path = os.path.join(max_lens_folder, max_lens_name)
         max_lens = self.check_and_retrieve_max_lens()
