@@ -229,7 +229,6 @@ def compute_mv2h_metrics(
             if os.path.exists(predicted_txt_file):
                 os.remove(predicted_txt_file)
 
-        print(" ----- n_voices ----- ", n_voices)  # TODO: Remove after debugging
         global_res_dict.__multi_pitch__ /= n_voices
         global_res_dict.__voice__ /= n_voices
         global_res_dict.__meter__ /= n_voices

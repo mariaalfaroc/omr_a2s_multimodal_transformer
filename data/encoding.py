@@ -58,7 +58,6 @@ class krnParser:
                         for line in in_score
                     ]
                 )
-                # is True
             )[0]
         )
         positions_voices = [np.where(np.array(in_score[idx]) == "*")[0] for idx in positions_elements]
