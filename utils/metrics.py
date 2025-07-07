@@ -15,7 +15,7 @@ from data.encoding import COC_TOKEN, CON_TOKEN, COR_TOKEN
 def compute_metrics(
     y_true: List[List[str]],
     y_pred: List[List[str]],
-    compute_mv2h: bool = False,
+    compute_mv2h: bool = True,
 ) -> Dict[str, float]:
     """
     Compute metrics for the given ground-truth and predicted sequences.
@@ -89,10 +89,6 @@ def compute_ed_metrics(
 
 
 #################################################################### MV2H:
-
-
-# TODO: WORK IN PROGRESS!
-
 
 def compute_mv2h_metrics(
     y_true: List[List[str]],
@@ -216,6 +212,13 @@ def compute_mv2h_metrics(
                     global_res_dict.__note_value__ += res_dict.note_value
                 except Exception:
                     pass
+            elif gtVoice_exists or predVoice_exists: # Voice without match (should be an error)
+                n_voices += 1
+                global_res_dict.__multi_pitch__ += 0
+                global_res_dict.__voice__ += 0
+                global_res_dict.__meter__ += 0
+                global_res_dict.__harmony__ += 0
+                global_res_dict.__note_value__ += 0
             else:
                 eval_voices = False
             pass
@@ -288,14 +291,13 @@ def compute_mv2h_metrics(
         seq2kern(sequence=h, name_out="predKern.krn")
 
         # Testing whether predicted kern can be processed as polyphonic
-        flag_polyphonic_kern = False
+        flag_polyphonic_kern = True
         try:
             a = converterm21.parse("predKern.krn").write("midi")
         except Exception:
             flag_polyphonic_kern = False
 
         if flag_polyphonic_kern:
-            # TODO: It never enters here?
             res_dict = eval_as_polyphonic()
         else:
             res_dict = eval_as_monophonic()

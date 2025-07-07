@@ -267,7 +267,7 @@ class ARDataset(Dataset):
             print(f"Removing columns: {remove_columns}")
             self.ds = self.ds.remove_columns(remove_columns)
             # Image column should always be named "image"
-            self.ds = self.ds.rename_column(image_key, "image")
+            if "image" not in self.ds.column_names: self.ds = self.ds.rename_column(image_key, "image")
             print(f"Columns: {self.ds.column_names}")
 
         else:
