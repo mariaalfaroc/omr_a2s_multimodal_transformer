@@ -15,7 +15,7 @@ from data.encoding import COC_TOKEN, CON_TOKEN, COR_TOKEN
 def compute_metrics(
     y_true: List[List[str]],
     y_pred: List[List[str]],
-    compute_mv2h: bool = True,
+    compute_mv2h: bool = False,
 ) -> Dict[str, float]:
     """
     Compute metrics for the given ground-truth and predicted sequences.
@@ -281,32 +281,36 @@ def compute_mv2h_metrics(
 
     MV2H_score = MV2H(multi_pitch=0, voice=0, meter=0, harmony=0, note_value=0)
     for t, h in zip(y_true, y_pred):
-        # GROUND-TRUTH
-        # Creating ground-truth kern file
-        seq2kern(sequence=t, name_out="gtKern.krn")
-
-        # PREDICTION
-        # Creating predicted kern file
-        seq2kern(sequence=h, name_out="predKern.krn")
-
-        # Testing whether predicted kern can be processed as polyphonic
-        flag_polyphonic_kern = True
         try:
-            a = converterm21.parse("predKern.krn").write("midi")
-        except Exception:
-            flag_polyphonic_kern = False
+            # GROUND-TRUTH
+            # Creating ground-truth kern file
+            seq2kern(sequence=t, name_out="gtKern.krn")
 
-        if flag_polyphonic_kern:
-            res_dict = eval_as_polyphonic()
-        else:
-            res_dict = eval_as_monophonic()
+            # PREDICTION
+            # Creating predicted kern file
+            seq2kern(sequence=h, name_out="predKern.krn")
 
-        # Updating global results
-        MV2H_score.__multi_pitch__ += res_dict.multi_pitch
-        MV2H_score.__voice__ += res_dict.voice
-        MV2H_score.__meter__ += res_dict.meter
-        MV2H_score.__harmony__ += res_dict.harmony
-        MV2H_score.__note_value__ += res_dict.note_value
+            # Testing whether predicted kern can be processed as polyphonic
+            flag_polyphonic_kern = True
+            try:
+                a = converterm21.parse("predKern.krn").write("midi")
+            except Exception:
+                flag_polyphonic_kern = False
+
+            if flag_polyphonic_kern:
+                res_dict = eval_as_polyphonic()
+            else:
+                res_dict = eval_as_monophonic()
+
+            # Updating global results
+            MV2H_score.__multi_pitch__ += res_dict.multi_pitch
+            MV2H_score.__voice__ += res_dict.voice
+            MV2H_score.__meter__ += res_dict.meter
+            MV2H_score.__harmony__ += res_dict.harmony
+            MV2H_score.__note_value__ += res_dict.note_value
+        except:
+            # We don't add anything, it's like adding 0
+            pass
 
         # Remove auxiliar files
         if os.path.exists("gtKern.krn"):
