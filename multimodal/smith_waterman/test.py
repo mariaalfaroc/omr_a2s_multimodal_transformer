@@ -70,6 +70,9 @@ def test(
     print(f"\tImage height: {img_height}")
     print(f"\tImage model checkpoint path: {image_checkpoint_path}")
     print(f"\tAudio model checkpoint path: {audio_checkpoint_path}")
+    print(f"\tMatch score: {match}")
+    print(f"\tMismatch score: {mismatch}")
+    print(f"\tGap penalty: {gap_penalty}")
 
     # Update wandb config
     wandb_logger = WandbLogger(

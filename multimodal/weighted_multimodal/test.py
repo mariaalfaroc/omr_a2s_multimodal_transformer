@@ -112,6 +112,7 @@ def test(
     print(f"\tImage height: {img_height}")
     print(f"\tImage model checkpoint path: {image_checkpoint_path}")
     print(f"\tAudio model checkpoint path: {audio_checkpoint_path}")
+    print(f"\tAlpha: {alpha}")
 
     # Update wandb config
     wandb_logger = WandbLogger(
