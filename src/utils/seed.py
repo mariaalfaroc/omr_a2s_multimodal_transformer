@@ -1,4 +1,4 @@
-def seed_everything(seed: int, deterministic: bool = True, benchmark: bool = True):
+def seed_everything(seed: int, deterministic: bool = True, benchmark: bool = True) -> None:
     """
     Set the seed for generating random numbers to ensure reproducibility.
 

@@ -5,8 +5,8 @@ import fire
 import torch
 
 
-def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
-    def modify_model_checkpoint_callback(ckpt: dict, modality: str = "image_distorted"):
+def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu") -> None:
+    def modify_model_checkpoint_callback(ckpt: dict, modality: str = "image_distorted") -> dict:
         ckpt_key = [k for k in ckpt["callbacks"].keys() if "ModelCheckpoint" in k][0]
         org_path = ckpt["callbacks"][ckpt_key]["best_model_path"]
         new_path = os.path.splitext(org_path)[0] + f"_only_{modality}" + os.path.splitext(org_path)[1]
@@ -15,7 +15,7 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
         ckpt["callbacks"][ckpt_key]["best_k_models"] = {new_path: ckpt["callbacks"][ckpt_key]["best_model_score"]}
         return ckpt
 
-    def modify_hyper_parameters(ckpt: dict, modality: str = "image"):
+    def modify_hyper_parameters(ckpt: dict, modality: str = "image") -> dict:
         del ckpt["hyper_parameters"]["mixer_type"]
         del ckpt["hyper_parameters"]["teacher_forcing_modality_prob"]
         if modality == "image":
@@ -40,20 +40,18 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
             raise ValueError(f"Unknown modality: {modality}")
         return ckpt
 
-    def modify_state_dict(ckpt: dict, modality: str = "image"):
-        def remove_weights(ckpt: dict, modality: str = "image"):
+    def modify_state_dict(ckpt: dict, modality: str = "image") -> dict:
+        def remove_weights(ckpt: dict, modality: str = "image") -> dict:
             keys_to_remove = [
                 k
                 for k in ckpt["state_dict"].keys()
-                if k.startswith(f"{modality}_encoder")
-                or k.startswith(f"{modality}_pos_2d")
-                or k.startswith("cross_attn")
+                if k.startswith(f"{modality}_encoder") or k.startswith(f"{modality}_pos_2d") or k.startswith("cross_attn")
             ]
             for key in keys_to_remove:
                 del ckpt["state_dict"][key]
             return ckpt
 
-        def remove_modality_prefix(ckpt: dict, modality: str = "image"):
+        def remove_modality_prefix(ckpt: dict, modality: str = "image") -> dict:
             org_keys = list(ckpt["state_dict"].keys())
             for key in org_keys:
                 if key.startswith(f"{modality}_"):
@@ -71,7 +69,7 @@ def split_both_ckpt_in_two(ckpt_path: str, device_name: str = "cpu"):
             raise ValueError(f"Unknown modality: {modality}")
         return ckpt
 
-    def save_model(ckpt: dict, path: str):
+    def save_model(ckpt: dict, path: str) -> None:
         torch.save(ckpt, path)
 
     # Multimodal model

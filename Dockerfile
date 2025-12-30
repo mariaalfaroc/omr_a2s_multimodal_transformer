@@ -1,18 +1,36 @@
 FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
 
-RUN apt update --fix-missing
-RUN apt install build-essential -y
-RUN apt install ffmpeg libsm6 -y
-RUN apt install vim -y
-RUN apt update --fix-missing
-RUN apt install fluidsynth -y
-RUN apt install git -y
-RUN apt clean
+# Set working directory
+WORKDIR /app
 
-RUN pip install --upgrade pip
-RUN pip install pybind11
+# Install ALL system dependencies in ONE layer (combine apt runs)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    ffmpeg \
+    libsm6 \
+    vim \
+    fluidsynth \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+# Install uv FIRST (before copying files)
+RUN pip install --no-cache-dir --upgrade pip uv
 
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install -U datasets
+# Copy project files first (for better layer caching)
+COPY pyproject.toml uv.lock* ./
+COPY src/ ./src/
+COPY grandstaff/ ./grandstaff/
+COPY run_experiments.sh ./
+
+# Create virtual environment and sync dependencies (creates .venv automatically)
+RUN uv sync --frozen  # Uses uv.lock for reproducible installs
+
+# Docker-only: pybind11 (not in local pyproject.toml)
+RUN uv pip install pybind11
+
+# Activate virtual environment by default
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Default command
+CMD ["/bin/bash"]

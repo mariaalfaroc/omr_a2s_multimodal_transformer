@@ -1,7 +1,3 @@
-import sys
-
-sys.path.append("./")
-
 import gc
 import os
 import random
@@ -13,23 +9,21 @@ import torch
 from lightning.pytorch.loggers.wandb import WandbLogger
 from rich.progress import track
 
-from data.ar_dataset import ARDataModule
-from multimodal.smith_waterman.smith_waterman import (
+from src.data.ar_dataset import ARDataModule
+from src.multimodal.smith_waterman.smith_waterman import (
     dump,
     get_alignment,
     preprocess_prob,
     swalign_preprocess,
     undo_swalign_preprocess,
 )
-from transformer.model import Transformer
-from utils.metrics import compute_metrics
-from utils.seed import seed_everything
+from src.transformer.model import Transformer
+from src.utils.metrics import compute_metrics
+from src.utils.seed import seed_everything
+from src.utils.environment import init_environment
 
 seed_everything(42, benchmark=False)
-
-# Set WANDB_API_KEY
-with open("wandb_api_key.txt", "r") as f:
-    os.environ["WANDB_API_KEY"] = f.read().strip()
+init_environment()
 
 
 def test(
@@ -42,7 +36,7 @@ def test(
     match: int = 2,
     mismatch: int = -1,
     gap_penalty: int = -1,
-):
+) -> None:
     gc.collect()
     torch.cuda.empty_cache()
 

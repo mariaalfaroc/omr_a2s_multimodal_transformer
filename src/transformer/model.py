@@ -8,11 +8,11 @@ from lightning.pytorch import LightningModule
 from torch.nn import CrossEntropyLoss
 from torchinfo import summary
 
-from data.ar_dataset import EOS_TOKEN, SOS_TOKEN
-from data.preprocessing import NUM_CHANNELS
-from transformer.decoder import Decoder
-from transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION, Encoder
-from utils.metrics import compute_metrics
+from src.data.ar_dataset import EOS_TOKEN, SOS_TOKEN
+from src.data.preprocessing import NUM_CHANNELS
+from src.transformer.decoder import Decoder
+from src.transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION, Encoder
+from src.utils.metrics import compute_metrics
 
 
 class PositionalEncoding2D(nn.Module):
@@ -26,7 +26,7 @@ class PositionalEncoding2D(nn.Module):
         dropout_p (float, optional): Dropout probability. Defaults to 0.1.
     """
 
-    def __init__(self, num_channels: int, max_height: int, max_width: int, dropout_p: float = 0.1):
+    def __init__(self, num_channels: int, max_height: int, max_width: int, dropout_p: float = 0.1) -> None:
         super(PositionalEncoding2D, self).__init__()
         self.dropout = nn.Dropout(p=dropout_p)
 
@@ -76,7 +76,7 @@ class Transformer(LightningModule):
         ytest_i2w: Optional[Dict[int, str]] = None,
         attn_window: int = -1,
         teacher_forcing_prob: float = 0.5,
-    ):
+    ) -> None:
         super(Transformer, self).__init__()
         # Save hyperparameters
         self.save_hyperparameters()
@@ -111,7 +111,7 @@ class Transformer(LightningModule):
         self.Y = []
         self.YHat = []
 
-    def summary(self):
+    def summary(self) -> None:
         print("Encoder")
         summary(
             self.encoder,
@@ -168,7 +168,7 @@ class Transformer(LightningModule):
         return loss
 
     @torch.no_grad()
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx) -> None:
         x, y = batch
         assert x.size(0) == y.size(0) == 1, "Inference only supports batch_size = 1"
 
@@ -199,11 +199,11 @@ class Transformer(LightningModule):
         self.YHat.append(yhat)
 
     @torch.no_grad()
-    def test_step(self, batch, batch_idx):
-        return self.validation_step(batch, batch_idx)
+    def test_step(self, batch, batch_idx) -> None:
+        self.validation_step(batch, batch_idx)
 
     @torch.no_grad()
-    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False):
+    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False) -> Dict[str, float]:
         metrics = compute_metrics(y_true=self.Y, y_pred=self.YHat)
         for k, v in metrics.items():
             self.log(f"{name}_{k}", v, prog_bar=True, logger=True, on_epoch=True)
@@ -218,7 +218,7 @@ class Transformer(LightningModule):
         return metrics
 
     @torch.no_grad()
-    def on_test_epoch_end(self):
+    def on_test_epoch_end(self) -> Dict[str, float]:
         return self.on_validation_epoch_end(name="test", print_random_samples=True)
 
     ##### FOR LATE MULTIMODAL FUSION:
@@ -286,7 +286,7 @@ class CrossAttention(nn.Module):
             - attn_weights: Attention weights tensor of shape [B, len_a, len_b].
     """
 
-    def __init__(self, feature_dim: int, num_heads: int = 4, dropout: float = 0.1):
+    def __init__(self, feature_dim: int, num_heads: int = 4, dropout: float = 0.1) -> None:
         super(CrossAttention, self).__init__()
         self.num_heads = num_heads
         self.attention = nn.MultiheadAttention(
@@ -388,7 +388,7 @@ class MultimodalTransformer(LightningModule):
         attn_window: int = -1,
         teacher_forcing_prob: float = 0.5,
         teacher_forcing_modality_prob: float = 0.5,
-    ):
+    ) -> None:
         super(MultimodalTransformer, self).__init__()
         # Save hyperparameters
         self.save_hyperparameters()
@@ -446,7 +446,7 @@ class MultimodalTransformer(LightningModule):
         self.Y = []
         self.YHat = []
 
-    def summary(self):
+    def summary(self) -> None:
         print("Image Encoder")
         summary(
             self.image_encoder,
@@ -473,11 +473,7 @@ class MultimodalTransformer(LightningModule):
         )
 
     def configure_optimizers(self):
-        params = (
-            list(self.image_encoder.parameters())
-            + list(self.audio_encoder.parameters())
-            + list(self.decoder.parameters())
-        )
+        params = list(self.image_encoder.parameters()) + list(self.audio_encoder.parameters()) + list(self.decoder.parameters())
         if hasattr(self, "cross_attn"):
             params += list(self.cross_attn.parameters())
         return torch.optim.Adam(
@@ -594,7 +590,7 @@ class MultimodalTransformer(LightningModule):
         return loss
 
     @torch.no_grad()
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx) -> None:
         xi, xa, y = batch
         assert xi.size(0) == xa.size(0) == y.size(0) == 1, "Inference only supports batch_size = 1"
 
@@ -621,11 +617,11 @@ class MultimodalTransformer(LightningModule):
         self.YHat.append(yhat)
 
     @torch.no_grad()
-    def test_step(self, batch, batch_idx):
-        return self.validation_step(batch, batch_idx)
+    def test_step(self, batch, batch_idx) -> None:
+        self.validation_step(batch, batch_idx)
 
     @torch.no_grad()
-    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False):
+    def on_validation_epoch_end(self, name: str = "val", print_random_samples: bool = False) -> Dict[str, float]:
         metrics = compute_metrics(y_true=self.Y, y_pred=self.YHat)
         for k, v in metrics.items():
             self.log(f"{name}_{k}", v, prog_bar=True, logger=True, on_epoch=True)
@@ -640,7 +636,7 @@ class MultimodalTransformer(LightningModule):
         return metrics
 
     @torch.no_grad()
-    def on_test_epoch_end(self):
+    def on_test_epoch_end(self) -> Dict[str, float]:
         return self.on_validation_epoch_end(name="test", print_random_samples=True)
 
     ##### MODALITY MIXERS:

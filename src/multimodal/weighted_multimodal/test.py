@@ -1,27 +1,21 @@
-import sys
-
-sys.path.append("./")
-
 import gc
 import os
 import random
-from typing import Optional
+from typing import Optional, List
 
 import fire
 import torch
 from lightning.pytorch.loggers.wandb import WandbLogger
 from rich.progress import track
 
-from data.ar_dataset import EOS_TOKEN, SOS_TOKEN, ARDataModule
-from transformer.model import Transformer
-from utils.metrics import compute_metrics
-from utils.seed import seed_everything
+from src.data.ar_dataset import EOS_TOKEN, SOS_TOKEN, ARDataModule
+from src.transformer.model import Transformer
+from src.utils.metrics import compute_metrics
+from src.utils.seed import seed_everything
+from src.utils.environment import init_environment
 
 seed_everything(42, benchmark=False)
-
-# Set WANDB_API_KEY
-with open("wandb_api_key.txt", "r") as f:
-    os.environ["WANDB_API_KEY"] = f.read().strip()
+init_environment()
 
 
 def weighted_prediction(
@@ -30,8 +24,8 @@ def weighted_prediction(
     img_model: torch.nn.Module,
     audio_model: torch.nn.Module,
     alpha: float = 0.5,
-):
-    def get_model_embedding(x: torch.Tensor, model: torch.nn.Module):
+) -> List[str]:
+    def get_model_embedding(x: torch.Tensor, model: torch.nn.Module) -> torch.Tensor:
         x = x.to(model.device)
         # Encoder
         x = model.encoder(x=x)
@@ -84,7 +78,7 @@ def test(
     use_distorted_images: bool = False,
     img_height: Optional[int] = None,  # If None, the original image height is used
     alpha: float = 0.5,
-):
+) -> None:
     gc.collect()
     torch.cuda.empty_cache()
 

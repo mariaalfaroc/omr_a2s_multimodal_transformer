@@ -9,7 +9,7 @@ from pyMV2H.metrics.mv2h import mv2h
 from pyMV2H.utils.music import Music
 from pyMV2H.utils.mv2h import MV2H
 
-from data.encoding import COC_TOKEN, CON_TOKEN, COR_TOKEN
+from src.data.encoding import COC_TOKEN, CON_TOKEN, COR_TOKEN
 
 
 def compute_metrics(
@@ -89,6 +89,7 @@ def compute_ed_metrics(
 
 
 #################################################################### MV2H:
+
 
 def compute_mv2h_metrics(
     y_true: List[List[str]],
@@ -212,7 +213,7 @@ def compute_mv2h_metrics(
                     global_res_dict.__note_value__ += res_dict.note_value
                 except Exception:
                     pass
-            elif gtVoice_exists or predVoice_exists: # Voice without match (should be an error)
+            elif gtVoice_exists or predVoice_exists:  # Voice without match (should be an error)
                 n_voices += 1
                 global_res_dict.__multi_pitch__ += 0
                 global_res_dict.__voice__ += 0
@@ -293,7 +294,7 @@ def compute_mv2h_metrics(
             # Testing whether predicted kern can be processed as polyphonic
             flag_polyphonic_kern = True
             try:
-                a = converterm21.parse("predKern.krn").write("midi")
+                _ = converterm21.parse("predKern.krn").write("midi")
             except Exception:
                 flag_polyphonic_kern = False
 

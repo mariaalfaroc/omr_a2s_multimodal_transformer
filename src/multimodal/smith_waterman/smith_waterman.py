@@ -62,8 +62,7 @@ def dump(alignment: swalign.Alignment) -> Tuple[str, str, str]:
                 q += alignment.orig_query[j]
                 r += alignment.orig_ref[i]
                 if alignment.query[j] == alignment.ref[i] or (
-                    alignment.wildcard
-                    and (alignment.query[j] in alignment.wildcard or alignment.ref[i] in alignment.wildcard)
+                    alignment.wildcard and (alignment.query[j] in alignment.wildcard or alignment.ref[i] in alignment.wildcard)
                 ):
                     m += "|"
                 else:

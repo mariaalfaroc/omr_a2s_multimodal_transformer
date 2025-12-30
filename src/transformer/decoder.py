@@ -101,7 +101,7 @@ class Decoder(nn.Module):
             kernel_size=1,
         )
 
-    def forward(self, tgt: torch.Tensor, memory: torch.Tensor, memory_len: torch.Tensor):
+    def forward(self, tgt: torch.Tensor, memory: torch.Tensor, memory_len: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the transformer decoder.
 
@@ -129,9 +129,7 @@ class Decoder(nn.Module):
 
         # Get tgt masks
         tgt_mask, tgt_key_padding_mask = self.get_tgt_masks(tgt)
-        tgt_key_padding_mask = (
-            None if memory_key_padding_mask is None else tgt_key_padding_mask
-        )  # memory_key_padding_mask is None during inference
+        tgt_key_padding_mask = None if memory_key_padding_mask is None else tgt_key_padding_mask  # memory_key_padding_mask is None during inference
 
         # Transformer decoder
         tgt_pred = self.transformer_decoder(
@@ -149,9 +147,7 @@ class Decoder(nn.Module):
 
         return tgt_pred
 
-    def get_memory_key_padding_mask(
-        self, memory: torch.Tensor, memory_len: Optional[torch.Tensor] = None
-    ) -> Optional[torch.Tensor]:
+    def get_memory_key_padding_mask(self, memory: torch.Tensor, memory_len: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
         """
         Generates the memory key padding mask needed for the transformer decoder forward pass.
         The mask is used to ignore padding in the encoder output.

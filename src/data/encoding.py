@@ -24,9 +24,7 @@ class krnParser:
 
     def __init__(self, encoding: str = "bekern"):
         # Check encoding
-        assert encoding in ENCODING_OPTIONS, (
-            f"You must chose one of the possible encoding options: {','.join(ENCODING_OPTIONS)}"
-        )
+        assert encoding in ENCODING_OPTIONS, f"You must chose one of the possible encoding options: {','.join(ENCODING_OPTIONS)}"
 
         # Attributes
         self.encoding = encoding
@@ -51,14 +49,7 @@ class krnParser:
 
         # Retrieving positions with '*'
         positions_elements = list(
-            np.where(
-                np.array(
-                    [
-                        ("*" in line) and (self.open_spine not in line) and (self.close_spine not in line)
-                        for line in in_score
-                    ]
-                )
-            )[0]
+            np.where(np.array([("*" in line) and (self.open_spine not in line) and (self.close_spine not in line) for line in in_score]))[0]
         )
         positions_voices = [np.where(np.array(in_score[idx]) == "*")[0] for idx in positions_elements]
 
@@ -80,9 +71,7 @@ class krnParser:
 
                 previous_elements = [line[position_voice] for line in in_score[it_reference:position_element]]
                 try:
-                    new_element = in_score[
-                        it_reference + max(np.where(np.char.startswith(previous_elements, "*clef")))[0]
-                    ][position_voice]
+                    new_element = in_score[it_reference + max(np.where(np.char.startswith(previous_elements, "*clef")))[0]][position_voice]
                 except Exception:
                     new_element = in_score[position_element][position_voice - 1]
                 in_score[position_element][position_voice] = new_element

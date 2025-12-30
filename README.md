@@ -7,7 +7,7 @@
 <h4 align='center'>Full text coming soon<a href='' target='_blank'></a>.</h4>
 
 <p align='center'>
-  <img src='https://img.shields.io/badge/python-3.11.0-orange' alt='Python'>
+  <img src='https://img.shields.io/badge/python-3.12.0-orange' alt='Python'>
   <img src='https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white' alt='PyTorch'>
   <img src='https://img.shields.io/badge/-Lightning-792ee5?logo=pytorchlightning&logoColor=white' alt='Lightning'>
   <img src='https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-white' alt='HuggingFace'>
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <strong>GRANDSTAFF Collection</strong> 
+  <strong>GRANDSTAFF Collection</strong>
   </br>
   <a href="https://huggingface.co/collections/PRAIG/omr-a2s-multimodal-grandstaff-68541370a4a8f1b983badbb3">
     <img align="center" src="https://huggingface.co/datasets/huggingface/badges/resolve/main/dataset-on-hf-md.svg">
@@ -38,48 +38,129 @@
 
 ## How To Use
 
-### Set Up with Conda
+### Prerequisites
 
-Follow these steps to set up the environment using Conda:
+- **Python 3.12+**: Required for the application (managed automatically by `uv`)
+- **Git**: For cloning the repository
+- **Access to Required APIs**: [Wandb](https://wandb.ai/site/) (see [`.env.template`](.env.template))
+
+### Local setup
+
+#### 1. Clone the repository
 
 ```bash
-# Clone the repository
 git clone https://github.com/mariaalfaroc/omr_a2s_multimodal_transformer
-
-# Navigate to the project directory
 cd omr_a2s_multimodal_transformer
-
-# Create and activate a new Conda environment
-conda create -n omr_a2s_transformer python=3.11
-conda activate omr_a2s_transformer
-
-# Install the required packages
-pip install -r requirements.txt
 ```
 
-#### Set Up with Docker
+#### 2. Install `uv` package manager
 
-Follow these steps to set up the project using Docker:
+[`uv`](https://docs.astral.sh/uv/) is used for fast and reliable dependency management.
+
+**macOS/Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows:**
+```bash
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Verify installation:
+```bash
+uv --version
+```
+
+#### 3. Create the virtual environment
 
 ```bash
-# Clone the repository
+uv venv
+```
+
+This creates a `.venv` directory with an isolated Python environment.
+
+#### 4. Activate the virtual environment
+
+**macOS/Linux:**
+```bash
+source .venv/bin/activate
+```
+
+**Windows:**
+```bash
+.venv\Scripts\activate
+```
+
+#### 5. Install dependencies
+
+```bash
+uv sync
+```
+
+This installs all dependencies defined in `pyproject.toml` (and `uv.lock` if present).
+
+#### 6. Environment configuration
+
+```bash
+cp .env.template .env
+```
+
+Edit `.env` and fill in the required variables (e.g., Wandb credentials).
+
+> If environment variables are not correctly set, the application will fail at startup due to validation.
+
+### Docker setup
+
+#### 1. Clone the repository
+
+```bash
 git clone https://github.com/mariaalfaroc/omr_a2s_multimodal_transformer
-
-# Navigate to the project directory
 cd omr_a2s_multimodal_transformer
+```
 
-# Build the Docker image
+#### 2. Prepare environment configuration
+
+On the host (before building):
+
+```bash
+cp .env.template .env
+# edit .env with your Wandb and other required settings
+```
+
+#### 3. Build the Docker image
+
+```bash
 docker build -t omr_a2s_transformer_image .
-
-# Run (launch) the Docker container
-docker run --name omr_a2s_transformer --gpus "device=0" -itd --rm --shm-size=40g -v $(pwd):/app omr_a2s_transformer_image
-
-# Enter the running Docker container’s shell
-docker exec -it omr_a2s_transformer /bin/bash
-
-# Install the required packages inside the container
-pip install -r requirements.txt
 ```
+
+#### 4. Run the container
+
+With GPU and project directory mounted:
+
+```bash
+docker run \
+  --name omr_a2s_transformer \
+  --gpus "device=0" \
+  -itd --rm \
+  --shm-size=40g \
+  --env-file .env \
+  -v $(pwd):/app \
+  omr_a2s_transformer_image
+```
+
+#### 5. Enter the container
+
+```bash
+docker exec -it omr_a2s_transformer /bin/bash
+```
+
+**Inside the container, everything is already set up:**
+- ✅ Virtual environment created (`.venv`)
+- ✅ Dependencies installed (`uv sync --frozen`)
+- ✅ Environment activated automatically (`PATH` updated)
+
+**Ready to run:** Your scripts and commands work immediately.
 
 ### Dataset
 
@@ -95,8 +176,8 @@ We use the [**GRANDSTAFF**](https://sites.google.com/view/multiscore-project/dat
 To obtain the corresponding audio files, follow these steps:
 
 1. **Download a [General MIDI SoundFont (.sf2)](https://sites.google.com/site/soundfonts4u/#h.p_biJ8J359lC5W)**
-  
-    We recommend the [SGM-v2.01 SoundFont](https://drive.google.com/file/d/12zSPpFucZXFg-svKeu6dm7-Fe5m20xgJ/view), which is compatible with our code. **Place the `.sf2` file in the [`data`](data) folder.**
+
+    We recommend the [SGM-v2.01 SoundFont](https://drive.google.com/file/d/12zSPpFucZXFg-svKeu6dm7-Fe5m20xgJ/view), which is compatible with our code. **Place the `.sf2` file in the [`data`](src/data) folder.**
 
 2. **Run the dataset preparation script:**
 
@@ -105,7 +186,7 @@ To obtain the corresponding audio files, follow these steps:
     > ⚠️ You **do not need to run the script** if you just want to use the final dataset — it is now directly available on Hugging Face.
 
     ```bash
-    python -u data/prepare_dataset.py
+    python -u src/data/prepare_dataset.py
     ```
 
 ### Experiments
@@ -118,11 +199,11 @@ To obtain the corresponding audio files, follow these steps:
 ```bibtex
 @article{luna2025omra2stransformer,
   title     = {{Multimodal Transcription Transformer for Polyphonic Music Transcription}},
-  author    = {Luna-Barahona, Noelia and Alfaro-Contreras, Mar{\'\i}a and P{\'\e}rez-Sancho, Carlos and Valero-Mas, Jose J and Calvo-Zaragoza, Jorge},
+  author    = {Alfaro-Contreras, Mar{\'\i}a and Luna-Barahona, Noelia and P{\'\e}rez-Sancho, Carlos and Valero-Mas, Jose J and Calvo-Zaragoza, Jorge},
   journal   = {{}},
   volume    = {},
   pages     = {},
-  year      = {2025},
+  year      = {2026},
   publisher = {},
   doi       = {},
 }

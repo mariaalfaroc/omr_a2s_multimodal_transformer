@@ -8,16 +8,16 @@ from datasets import load_dataset
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
-from data.encoding import krnParser, ENCODING_OPTIONS
-from data.prepare_dataset import GRANDSTAFF_PATH
-from data.preprocessing import (
+from src.data.encoding import krnParser, ENCODING_OPTIONS
+from src.data.prepare_dataset import GRANDSTAFF_PATH
+from src.data.preprocessing import (
     ar_batch_preparation_audio,
     ar_batch_preparation_image,
     ar_batch_preparation_multimodal,
     preprocess_audio,
     preprocess_image,
 )
-from transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION
+from src.transformer.encoder import HEIGHT_REDUCTION, WIDTH_REDUCTION
 
 SOS_TOKEN = "<sos>"  # Start-of-sequence token
 EOS_TOKEN = "<eos>"  # End-of-sequence token
@@ -59,7 +59,7 @@ class ARDataModule(LightningDataModule):
         img_height: Optional[int] = None,  # If None, the original image height is used
         batch_size: int = 16,
         num_workers: int = 20,
-    ):
+    ) -> None:
         super(ARDataModule, self).__init__()
         self.ds_name = ds_name
         self.krn_encoding = krn_encoding
@@ -80,7 +80,7 @@ class ARDataModule(LightningDataModule):
         self.val_ds = None
         self.test_ds = None
 
-    def setup(self, stage: str):
+    def setup(self, stage: str) -> None:
         if stage == "fit":
             if not self.train_ds:
                 self.train_ds = ARDataset(
@@ -208,7 +208,7 @@ class ARDataset(Dataset):
         input_modality: str = "both",  # "audio" or "image" or "both"
         use_distorted_images: bool = False,
         img_height: Optional[int] = None,  # If None, the original image height is used
-    ):
+    ) -> None:
         self.ds_name = ds_name.lower()
         self.partition_type = partition_type
         self.input_modality = input_modality.lower()
@@ -218,7 +218,7 @@ class ARDataset(Dataset):
 
     # ---------------------------------------------------------------------------- INITIALIZATION
 
-    def init(self, krn_encoding: str = "bekern", vocab_name: str = "w2i"):
+    def init(self, krn_encoding: str = "bekern", vocab_name: str = "w2i") -> None:
         # Initialize krn parser
         self.krn_parser = krnParser(encoding=krn_encoding)
 
@@ -254,7 +254,7 @@ class ARDataset(Dataset):
                 print(f"Using both audio and image modalities for {self.ds_name} dataset.")
             else:
                 raise ValueError(f"Invalid input_modality: {self.input_modality}. Must be 'image' or 'both'.")
-            
+
             # Check if distorted images are used
             image_key = None
             if self.use_distorted_images:
@@ -346,7 +346,7 @@ class ARDataset(Dataset):
 
         return max_lens
 
-    def make_max_lens(self):
+    def make_max_lens(self) -> Dict[str, int]:
         # Set the maximum lengths for the whole GRANDSTAFF collection:
         # 1) Get the maximum transcript length
         # 2) Get the maximum image size
@@ -406,9 +406,7 @@ class ARDataset(Dataset):
 
     def __getitemaudio__(self, idx: int):
         sample = self.ds[idx]
-        x = preprocess_audio(
-            raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32
-        )
+        x = preprocess_audio(raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32)
         y = self.preprocess_transcript(text=sample["transcript"])
         if self.partition_type == "train":
             return x, self.get_number_of_frames(x), y
@@ -417,9 +415,7 @@ class ARDataset(Dataset):
     def __getitemboth__(self, idx: int):
         sample = self.ds[idx]
         xi = preprocess_image(raw_image=sample["image"], img_height=self.img_height, dtype=torch.float32)
-        xa = preprocess_audio(
-            raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32
-        )
+        xa = preprocess_audio(raw_audio=sample["audio"]["array"], sr=sample["audio"]["sampling_rate"], dtype=torch.float32)
         y = self.preprocess_transcript(text=sample["transcript"])
         if self.partition_type == "train":
             return (

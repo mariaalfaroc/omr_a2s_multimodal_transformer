@@ -7,27 +7,23 @@ import torch
 from lightning.pytorch import Trainer
 from lightning.pytorch.loggers.wandb import WandbLogger
 
-from data.ar_dataset import ARDataModule
-from transformer.model import MultimodalTransformer, Transformer
-from utils.seed import seed_everything
+from src.data.ar_dataset import ARDataModule
+from src.transformer.model import MultimodalTransformer, Transformer
+from src.utils.seed import seed_everything
+from src.utils.environment import init_environment
 
 seed_everything(42, benchmark=False)
-
-# Set WANDB_API_KEY
-with open("wandb_api_key.txt", "r") as f:
-    os.environ["WANDB_API_KEY"] = f.read().strip()
+init_environment()
 
 
 def test(
-    ds_name,
+    ds_name: str,
     checkpoint_path: str,
     krn_encoding: str = "bekern",
     input_modality: str = "audio",  # "audio" or "image" or "both"
     use_distorted_images: bool = False,  # Only used if input_modality == "image"
-    img_height: Optional[
-        int
-    ] = None,  # If None, the original image height is used (only used if input_modality == "image")
-):
+    img_height: Optional[int] = None,  # If None, the original image height is used (only used if input_modality == "image")
+) -> None:
     gc.collect()
     torch.cuda.empty_cache()
 

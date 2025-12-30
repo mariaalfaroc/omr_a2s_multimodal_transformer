@@ -8,26 +8,22 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 
-from data.ar_dataset import ARDataModule
-from data.preprocessing import MEMORY
-from transformer.model import MultimodalTransformer, Transformer
-from utils.seed import seed_everything
+from src.data.ar_dataset import ARDataModule
+from src.data.preprocessing import MEMORY
+from src.transformer.model import MultimodalTransformer, Transformer
+from src.utils.seed import seed_everything
+from src.utils.environment import init_environment
 
-seed_everything(42, deterministic=False, benchmark=False)
-
-# Set WANDB_API_KEY
-with open("wandb_api_key.txt", "r") as f:
-    os.environ["WANDB_API_KEY"] = f.read().strip()
+seed_everything(42, benchmark=False)
+init_environment()
 
 
 def train(
-    ds_name,
+    ds_name: str,
     krn_encoding: str = "bekern",
     input_modality: str = "audio",  # "audio" or "image" or "both"
     use_distorted_images: bool = False,  # Only used if input_modality == "image" or "both"
-    img_height: Optional[
-        int
-    ] = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
+    img_height: Optional[int] = None,  # If None, the original image height is used (only used if input_modality == "image" or "both")
     attn_window: int = -1,  # Number of past tokens to attends to; -1 == no limitation (attends to all past tokens)
     mixer_type: Optional[
         str
@@ -37,7 +33,7 @@ def train(
     batch_size: int = 16,
     check_val_every_n_epoch: int = 5,
     checkpoint_path: str = "",  # If not empty, the model will be loaded from this checkpoint
-):
+) -> None:
     gc.collect()
     torch.cuda.empty_cache()
 

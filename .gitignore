@@ -3,6 +3,9 @@ __pycache__
 cache*
 log
 joblib_cache
+.ruff_cache/
+.mypy_cache/
+.DS_Store
 
 # Avoid to upload VSCode settings
 .vscode
@@ -11,11 +14,15 @@ joblib_cache
 build
 test
 
-# Avoid to upload venv files
-.venv*
+# Avoid to virtual environment files
+.env
+.env/
+.venv/
+env/
+venv/
 
 # Avoid to upload Jupyter notebook checkpoints
-notebooks/.ipynb_checkpoints/*
+*.ipynb_checkpoints
 
 # Avoid to upload results
 *results*
@@ -23,11 +30,10 @@ notebooks/.ipynb_checkpoints/*
 # Avoiding to upload the datasets
 datasets/*
 grandstaff
-data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2
+src/data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2
 
 # Avoid to upload the models
 weights
 
 # Avoid to upload the WANDB logs
 wandb
-wandb_api_key.txt

@@ -31,7 +31,7 @@ def get_spectrogram_from_raw_audio(raw_audio: np.ndarray, sr: float) -> np.ndarr
 
 
 @MEMORY.cache
-def preprocess_audio(raw_audio: np.ndarray, sr: float, dtype=torch.float32) -> torch.Tensor:
+def preprocess_audio(raw_audio: np.ndarray, sr: float, dtype: torch.dtype = torch.float32) -> torch.Tensor:
     # Get spectrogram (already normalized)
     x = get_spectrogram_from_raw_audio(raw_audio, sr)
     # Convert to PyTorch tensor
@@ -42,9 +42,7 @@ def preprocess_audio(raw_audio: np.ndarray, sr: float, dtype=torch.float32) -> t
 
 
 @MEMORY.cache
-def preprocess_image(
-    raw_image: Image.Image, img_height: Optional[int] = None, dtype: torch.dtype = torch.float32
-) -> torch.Tensor:
+def preprocess_image(raw_image: Image.Image, img_height: Optional[int] = None, dtype: torch.dtype = torch.float32) -> torch.Tensor:
     x = raw_image.convert("L")  # Convert to grayscale
     if img_height is not None:
         new_width = int(img_height * x.size[0] / x.size[1])  # Get width preserving aspect ratio
@@ -84,9 +82,7 @@ def pad_batch_transcripts(x: torch.Tensor, dtype: torch.dtype = torch.int32) -> 
     return x
 
 
-def ar_batch_preparation_unimodal(
-    batch, pad_value: float = 0.0
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+def ar_batch_preparation_unimodal(batch, pad_value: float = 0.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Returns a batch consisting of:
         - x (torch.Tensor): padded images. Shape: [batch_size, NUM_CHANNELS, max_height, max_width].

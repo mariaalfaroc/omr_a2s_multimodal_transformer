@@ -9,13 +9,13 @@ from music21 import converter
 from sklearn.model_selection import train_test_split
 
 GRANDSTAFF_PATH = "./grandstaff"
-SOUND_FONT = "./data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2"
+SOUND_FONT = "./src/data/SGM-v2.01-YamahaGrand-Guit-Bass-v2.7.sf2"
 
 
 ########################################################## DOWNLOAD DATASET
 
 
-def download_and_extract_grandstaff_dataset():
+def download_and_extract_grandstaff_dataset() -> None:
     """Download and extract the GRANDSTAFF dataset."""
     file_path = "grandstaff.tgz"
     extract_path = GRANDSTAFF_PATH
@@ -35,7 +35,7 @@ def download_and_extract_grandstaff_dataset():
 ########################################################## PARSE NEW DATASET FOLDER STRUCTURE
 
 
-def parse_grandstaff_dataset():
+def parse_grandstaff_dataset() -> None:
     """
     Parse the new folder structure of the GRANDSTAFF dataset.
     The new folder structure is as follows:
@@ -97,7 +97,7 @@ def parse_grandstaff_dataset():
 ########################################################## CONVERT KRNS TO WAVS
 
 
-def krn2wav():
+def krn2wav() -> None:
     """
     Convert all krn files () to wav files.
     Save the wav files in the corresponding wav folder of each composer.
@@ -165,7 +165,7 @@ def krn2wav():
 ########################################################## CREATE PARTITIONS
 
 
-def check_and_create_partitions():
+def check_and_create_partitions() -> None:
     """
     Check if partitions have been created for each composer.
     If not, create them.
@@ -187,14 +187,14 @@ def check_and_create_partitions():
                 break
 
 
-def create_composer_partitions():
+def create_composer_partitions() -> None:
     """
     Create train, val and test partitions for each composer.
     Save the partitions in the corresponding partitions folder of each composer.
     Path: ./grandstaff/partitions/composer/{train, val, test}.txt
     """
 
-    def extract_org_name(name):
+    def extract_org_name(name: str) -> str:
         """
         Utility function to extract the original name of a file.
         Examples:
@@ -216,11 +216,7 @@ def create_composer_partitions():
         os.makedirs(partition_folder, exist_ok=True)
 
         composer_path = os.path.join(GRANDSTAFF_PATH, composer)
-        samples = [
-            f.split(".wav")[0]
-            for f in os.listdir(os.path.join(composer_path, "wav"))
-            if f.endswith(".wav") and not f.startswith(".")
-        ]
+        samples = [f.split(".wav")[0] for f in os.listdir(os.path.join(composer_path, "wav")) if f.endswith(".wav") and not f.startswith(".")]
 
         # Test samples should be "original" samples that are not transposed
         # That is, we cannot have a original sample in the test set and
@@ -242,7 +238,7 @@ def create_composer_partitions():
                 partition_file.write("\n".join(samples))
 
 
-def create_grandstaff_partitions():
+def create_grandstaff_partitions() -> None:
     """
     Create train, val and test partitions for the GRANDSTAFF dataset.
     Use the partitions of each composer.
@@ -259,9 +255,7 @@ def create_grandstaff_partitions():
             with open(os.path.join(partitions_path, composer, f"{partition}.txt"), "r") as partition_file:
                 samples = partition_file.read().splitlines()
                 samples = [f"{composer}\t{s}" for s in samples]
-                with open(
-                    os.path.join(grandstaff_partitions_path, f"{partition}.txt"), "a"
-                ) as grandstaff_partition_file:
+                with open(os.path.join(grandstaff_partitions_path, f"{partition}.txt"), "a") as grandstaff_partition_file:
                     grandstaff_partition_file.write("\n".join(samples) + "\n")
 
 

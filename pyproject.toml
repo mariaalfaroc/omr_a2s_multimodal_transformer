@@ -1,0 +1,99 @@
+[project]
+name = "src"
+version = "0.1.0" # major.minor.patch
+requires-python = "~=3.12.0"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.12",
+]
+description = "Multimodal Music Transcription with OMR and A2S"
+readme = "README.md"
+dependencies = [
+    "music21",
+    "midi2audio",
+    "torchvision",
+    "lightning",
+    "torchinfo",
+    "librosa",
+    "scikit-learn",
+    "fire",
+    "pyMV2H",
+    "swalign==0.3.6",
+    "wandb",
+    "rich",
+    "huggingface_hub",
+    "datasets",
+    "python-dotenv>=1.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit~=4.3",
+    "ruff~=0.13",
+    "commitizen~=4.9",
+    "mypy>=1.14.1",
+    "bandit[toml]~=1.8",
+    "tox~=4.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# -----------------------------------------------
+# Hatch Configuration
+# -----------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# -----------------------------------------------
+# Quality: Ruff (Linter & Formatter)
+# -----------------------------------------------
+[tool.ruff]
+line-length = 150
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# -----------------------------------------------
+# Quality: MyPy (Type Checker)
+# -----------------------------------------------
+[tool.mypy]
+install_types = true
+ignore_missing_imports = true
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_configs = true
+non_interactive = true
+disallow_untyped_defs = true
+disallow_any_generics = false # because of the TransformPipeline class
+
+# -----------------------------------------------
+# Security: Bandit
+# -----------------------------------------------
+[tool.bandit]
+targets = ["src"]
+skips = ["B101"] # ignore assert in tests
+
+# -----------------------------------------------
+# Testing: Tox
+# -----------------------------------------------
+[tool.tox]
+env_list = ["security"]
+
+# Security Check Environment (Bandit)
+[tool.tox.env.security]
+description = "Run security checks with Bandit"
+deps = ["bandit[toml]"]
+commands = [
+    # Bandit configuration is already in [tool.bandit]
+    "bandit -r src -c pyproject.toml"
+]

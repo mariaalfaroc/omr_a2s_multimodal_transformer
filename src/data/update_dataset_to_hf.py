@@ -96,7 +96,7 @@ def get_inputs_and_transcripts_files(
     return data
 
 
-def upload_grandstaff_to_hf(base_dir: str):
+def upload_grandstaff_to_hf(base_dir: str) -> None:
     # Ensure the HF_TOKEN environment variable is set
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
