@@ -2,9 +2,9 @@
   <a href=''><img src='https://i.imgur.com/Iu7CvC1.png' alt='PRAIG-logo' width='100'></a>
 </p>
 
-<h1 align='center'>Multimodal audio and image to score transcription</h1>
+<h1 align='center'>Multimodal transformers for image and audio polyphonic music transcription</h1>
 
-<h4 align='center'>Full text coming soon<a href='' target='_blank'></a>.</h4>
+<h4 align='center'>Full text available <a href='https://www.sciencedirect.com/science/article/pii/S1568494626000918' target='_blank'>here</a>.</h4>
 
 <p align='center'>
   <img src='https://img.shields.io/badge/python-3.12.0-orange' alt='Python'>
@@ -197,22 +197,21 @@ To obtain the corresponding audio files, follow these steps:
 ## Citations
 
 ```bibtex
-@article{luna2025omra2stransformer,
-  title     = {{Multimodal Transcription Transformer for Polyphonic Music Transcription}},
-  author    = {Alfaro-Contreras, Mar{\'\i}a and Luna-Barahona, Noelia and P{\'\e}rez-Sancho, Carlos and Valero-Mas, Jose J and Calvo-Zaragoza, Jorge},
-  journal   = {{}},
-  volume    = {},
-  pages     = {},
+@article{alfaro2026omra2stransformer,
+  title     = {{Multimodal transformers for image and audio polyphonic music transcription}},
+  author    = {Alfaro-Contreras, Mar{\'\i}a and Luna-Barahona, Noelia and P{\'\e}rez-Sancho, Carlos and Calvo-Zaragoza, Jorge and Valero-Mas, Jose J},
+  journal   = {{Applied Soft Computing}}},
+  pages     = {114643},
   year      = {2026},
-  publisher = {},
-  doi       = {},
+  publisher = {Elsevier},
+  doi       = {10.1016/j.asoc.2026.114643},
+  issn      = {1568-4946},
 }
 ```
 
-
 ## Acknowledgments
 
-This work is part of the I+D+i PID2020-118447RA-I00 ([MultiScore](https://sites.google.com/view/multiscore-project)) project, funded by MCIN/AEI/10.13039/501100011033. Computational resources were provided by the Valencian Government and FEDER funding through IDIFEDER/2020/003.
+This research was supported by the Spanish Ministry of Science and Innovation through the LEMUR research project (PID2023-148259NB-I00), funded by MCIU/AEI/10.13039/501100011033/FEDER, EU, and the European Social Fund Plus (FSE+).
 
 ## License
 
